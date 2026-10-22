@@ -1,0 +1,38 @@
+name: Bug report
+description: Something PlayMode did (or didn't do) that it shouldn't have
+labels: [bug]
+body:
+  - type: textarea
+    id: what
+    attributes:
+      label: What happened
+      description: What you did, what you expected, and what happened instead.
+    validations:
+      required: true
+  - type: input
+    id: version
+    attributes:
+      label: PlayMode version
+      description: "`playmodectl --version`, or Settings → Apps → Installed apps"
+    validations:
+      required: true
+  - type: input
+    id: windows
+    attributes:
+      label: Windows version
+      placeholder: Windows 11 24H2
+    validations:
+      required: true
+  - type: input
+    id: apps
+    attributes:
+      label: Apps involved
+      description: Which app didn't close, come back, or came back wrong, if any.
+  - type: textarea
+    id: log
+    attributes:
+      label: Log
+      description: >-
+        The relevant lines from %LOCALAPPDATA%\PlayMode\playmode.log (and C:\ProgramData\PlayMode\helper.log for
+        service problems). It can contain app names and paths from your PC, so look it over first.
+      render: text

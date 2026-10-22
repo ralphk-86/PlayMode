@@ -480,3 +480,6 @@ $RECYCLE.BIN/
 
 # Vim temporary swap files
 *.swp
+
+# Many global ignore files skip build/; this one holds the release scripts.
+!build/

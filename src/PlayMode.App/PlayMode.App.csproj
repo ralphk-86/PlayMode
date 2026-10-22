@@ -6,6 +6,7 @@
     <AssemblyName>PlayMode</AssemblyName>
     <RootNamespace>PlayMode.App</RootNamespace>
     <ApplicationHighDpiMode>PerMonitorV2</ApplicationHighDpiMode>
+    <ApplicationIcon>PlayMode.ico</ApplicationIcon>
     <BundleHelper>true</BundleHelper>
   </PropertyGroup>
 

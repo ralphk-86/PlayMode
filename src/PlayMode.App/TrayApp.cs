@@ -203,7 +203,7 @@ sealed class TrayApp : ApplicationContext
     void UpdateIcon()
     {
         var state = State();
-        _tray.Icon = _busy ? TrayIcons.Busy : state.Mode == Mode.Play ? TrayIcons.Play : TrayIcons.Dev;
+        _tray.Icon = _busy ? TrayIcons.TrayBusy : state.Mode == Mode.Play ? TrayIcons.TrayPlay : TrayIcons.TrayDev;
         _tray.Text = _busy ? "PlayMode: switching…"
             : state.Mode == Mode.Play ? $"PlayMode: {state.Profile} is on"
             : "PlayMode: dev mode";

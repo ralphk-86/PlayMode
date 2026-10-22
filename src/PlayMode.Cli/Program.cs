@@ -1,3 +1,4 @@
+using System.Reflection;
 using PlayMode.Core.Discovery;
 using PlayMode.Core.Engine;
 using PlayMode.Core.Ipc;
@@ -18,6 +19,7 @@ const string Usage = """
                              what PlayMode finds on this machine: apps, startup items, services
       setup                  install or update service control (asks for admin once)
       remove-helper          uninstall service control (asks for admin)
+      version                PlayMode version
 
     options:
       --profile <name>       profile to use (default: the one picked in the tray, else the config default)
@@ -39,6 +41,13 @@ bool Flag(string name) => args.Contains(name);
 if (command is "help" or "-h" || Flag("--help"))
 {
     Console.WriteLine(Usage);
+    return 0;
+}
+
+if (command == "version" || Flag("--version"))
+{
+    var version = typeof(Program).Assembly.GetCustomAttribute<AssemblyInformationalVersionAttribute>()?.InformationalVersion;
+    Console.WriteLine($"PlayMode {version?.Split('+')[0] ?? "unknown"}");
     return 0;
 }
 

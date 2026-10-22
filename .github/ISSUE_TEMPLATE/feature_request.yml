@@ -1,0 +1,16 @@
+name: Idea or feature request
+description: Something PlayMode could do better
+labels: [enhancement]
+body:
+  - type: textarea
+    id: problem
+    attributes:
+      label: What you're trying to do
+      description: The situation, rather than the solution. What gets in the way today?
+    validations:
+      required: true
+  - type: textarea
+    id: idea
+    attributes:
+      label: Idea
+      description: How you'd like it to work, if you have something in mind.

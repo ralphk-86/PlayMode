@@ -5,8 +5,17 @@
 PlayMode closes (or freezes) the dev and background apps you choose — WSL, Docker, IDEs, sync clients, VPNs,
 indexers — when you sit down to play, and brings back *exactly what was running* when you're done.
 
-> **Status: early development.** The tray app, settings window, engine and service control work and are tested on
-> real machines; the hotkey, auto-switch and installer are next. See the [roadmap](#roadmap).
+[![CI](https://github.com/ralphk-86/PlayMode/actions/workflows/ci.yml/badge.svg)](https://github.com/ralphk-86/PlayMode/actions/workflows/ci.yml)
+[![Release](https://img.shields.io/github/v/release/ralphk-86/PlayMode)](https://github.com/ralphk-86/PlayMode/releases/latest)
+[![License: MIT](https://img.shields.io/badge/license-MIT-blue)](LICENSE)
+
+> **Status: 0.1, early but working.** The tray app, settings window, engine and service control are in daily use on
+> our own machines. A global hotkey and switching automatically when a game starts are next. See the
+> [roadmap](#roadmap).
+
+**Contents:** [Install](#install) · [Using it](#using-it) · [Stopping services safely](#stopping-services-safely) ·
+[What it changes on your PC](#what-playmode-changes-on-your-pc) · [Uninstall](#uninstall) ·
+[Troubleshooting](#troubleshooting) · [Building from source](#building-from-source)
 
 ## Why we built it
 
@@ -40,9 +49,31 @@ up RAM, stop background work (indexing, syncing, updaters) that causes stutter a
 out of your game traffic, and silence notifications. If an app promises +30% FPS from this kind of thing, be
 skeptical.
 
+## Install
+
+You need Windows 10 (version 2004 or later) or Windows 11 on x64, and the
+[.NET 10 Desktop Runtime](https://dotnet.microsoft.com/download/dotnet/10.0). The installer tells you if it's
+missing, and winget installs it for you.
+
+- **Installer** (recommended): download `PlayMode-<version>-setup-x64.exe` from the
+  [latest release](https://github.com/ralphk-86/PlayMode/releases/latest) and run it. It installs for your account
+  only, so it doesn't need admin rights, and puts PlayMode in `%LOCALAPPDATA%\Programs\PlayMode` with a Start menu
+  entry. You can choose whether it starts with Windows and whether `playmodectl` goes on your PATH.
+- **winget** (once the package has been approved): `winget install ralphk-86.PlayMode`
+- **Portable zip**: unzip `PlayMode-<version>-win-x64.zip` anywhere and run `PlayMode.exe`.
+- **From source**: see [Building from source](#building-from-source).
+
+Each release lists SHA-256 checksums in `SHA256SUMS.txt`. The builds aren't code-signed yet, so Windows SmartScreen
+may say it doesn't recognise the publisher the first time you run the installer: choose *More info* → *Run anyway*,
+or build it yourself.
+
+On first run, PlayMode opens its settings window with a suggested profile. Look it over, save, and you're ready. If
+your profile stops any services, the tray menu offers the one-time service-control setup described
+[below](#stopping-services-safely).
+
 ## Using it
 
-PlayMode lives in the notification area. **Click the icon** to switch: blue `</>` is dev mode, green 🎮 is play
+PlayMode lives in the notification area. **Click the icon** to switch: a blue DEV computer is dev mode, a red GAME one is play
 mode, amber while it's switching. If something with live work is running (WSL, a terminal, a coding agent), it asks
 first. Right-click for the rest: preview what would change, pick a profile, see the last report, start with Windows.
 
@@ -103,23 +134,107 @@ to run as admin all the time either. So the admin part is kept small and fenced 
 
 `playmodectl remove-helper` undoes all of it.
 
+## What PlayMode changes on your PC
+
+PlayMode closes, freezes and restarts other programs and can stop services, which is exactly the kind of thing you
+should be able to check. Here is everything it touches:
+
+| What | Where | When |
+|---|---|---|
+| The app | `%LOCALAPPDATA%\Programs\PlayMode` | Installed |
+| Your settings and profiles | `%APPDATA%\PlayMode\config.json` (and `config.json.bak`) | When you save settings |
+| What to restore, and a log | `%LOCALAPPDATA%\PlayMode\state.json`, `playmode.log` | While running |
+| Start with Windows | `PlayMode` value under `HKCU\Software\Microsoft\Windows\CurrentVersion\Run` | If you choose it |
+| `playmodectl` on PATH | Your user `Path` variable | If you choose it at install |
+| Service helper and its allowlist | `C:\Program Files\PlayMode\Helper` | Only after service-control setup |
+| Two on-demand scheduled tasks | `\PlayMode\ServicesStop` and `\PlayMode\ServicesStart` | Only after service-control setup |
+| Helper requests, results and log | `C:\ProgramData\PlayMode` | Only after service-control setup |
+
+It never touches Windows' own processes, whatever a rule says. There's no telemetry and no update check. The only
+network activity is this:
+
+- If you use Tailscale, PlayMode runs Tailscale's own command-line tool to disconnect and reconnect.
+- If your profile stops Proton VPN's services, the helper then checks the internet still works by briefly opening a
+  connection to 1.1.1.1 or 8.8.8.8, sending no data. If Proton's kill switch has left you offline, it runs Proton's
+  own `ProtonVPN.RestoreInternet.exe`.
+
+## Uninstall
+
+Use **Settings → Apps → Installed apps → PlayMode → Uninstall**, or `winget uninstall ralphk-86.PlayMode`.
+
+The uninstaller:
+
+- switches you back to dev mode first if you're in play mode, so nothing is left closed;
+- removes service control if you set it up, which asks for admin once;
+- asks whether to keep your settings.
+
+If you used the portable zip, run `playmodectl off` and then `playmodectl remove-helper`, and delete the folder.
+
+## Troubleshooting
+
+- **Something didn't come back after play mode.** Run `playmodectl off` (or click the tray icon). PlayMode keeps
+  what it closed in `state.json`, so it can restore it even after a crash or reboot.
+- **The tray says "PlayMode was updated: set up service control".** After an update the helper in Program Files
+  is older than the app, so it needs approving again (one UAC prompt). Until then switching still works, using the
+  helper you approved before.
+- **An app comes back as a big window, or not at all.** Open settings, select the app, and change how it's started
+  again; the rule spells out exactly what PlayMode will run. If it's an app from the catalog, please open an issue.
+- **Anything else:** `%LOCALAPPDATA%\PlayMode\playmode.log` says what PlayMode did and why. The service helper logs
+  to `C:\ProgramData\PlayMode\helper.log`. Please attach the relevant part when you
+  [report a bug](https://github.com/ralphk-86/PlayMode/issues/new/choose).
+
+### Antivirus
+
+PlayMode legitimately does things malware also does: it closes and suspends other programs, stops services, and
+installs a scheduled task that runs as SYSTEM. If your antivirus flags it, please report it as a false positive to
+the vendor and [open an issue](https://github.com/ralphk-86/PlayMode/issues). The source is all here, and you can
+build it yourself.
+
 ## Roadmap
 
 - [x] Core engine: plan, close/force/suspend, restore, window handling, crash/sign-in recovery, Tailscale, WSL
 - [x] Command line
 - [x] Tray app and service control without a UAC prompt each time
 - [x] Settings window: pick apps from what's running and installed, with a catalog of known apps; profiles
+- [x] Installer and GitHub releases
+- [ ] winget package
 - [ ] Global hotkey, auto-switch when a game starts
-- [ ] Installer, winget package
+- [ ] Code-signed releases
 
-## Building
+## Building from source
 
-Requires the .NET 10 SDK on Windows.
+You need Windows and the [.NET 10 SDK](https://dotnet.microsoft.com/download/dotnet/10.0).
 
 ```powershell
+git clone https://github.com/ralphk-86/PlayMode.git
+cd PlayMode
 dotnet build
 dotnet test
 ```
+
+To build what a release ships:
+
+```powershell
+./build/publish.ps1 -Version 0.1.0                  # app, playmodectl and helper in artifacts\publish
+iscc /DAppVersion=0.1.0 installer\PlayMode.iss      # installer in artifacts\ (needs Inno Setup 6)
+```
+
+Releases are built by [GitHub Actions](.github/workflows/release.yml) when a `v*` tag is pushed.
+
+How it's put together:
+
+| Project | What it is |
+|---|---|
+| `src/PlayMode.Core` | The engine, rules, discovery and storage. Everything Windows-specific sits behind interfaces, so the logic is unit-tested without touching the machine. |
+| `src/PlayMode.App` | The tray app and settings window (WinForms), `PlayMode.exe`. |
+| `src/PlayMode.Cli` | `playmodectl`. |
+| `src/PlayMode.Helper` | The small elevated service helper. |
+| `tests/PlayMode.Core.Tests` | xUnit tests. |
+
+## Contributing
+
+Bug reports, catalog additions and pull requests are welcome. See [CONTRIBUTING.md](CONTRIBUTING.md). For security
+issues, please follow [SECURITY.md](SECURITY.md) instead of opening a public issue.
 
 ## License
 

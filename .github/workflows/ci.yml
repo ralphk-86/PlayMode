@@ -23,3 +23,17 @@ jobs:
         with:
           name: test-results
           path: TestResults
+      # Catch packaging breakage before a release tag does; the installer is kept for a few days for testing.
+      - name: Publish and build installer
+        shell: pwsh
+        run: |
+          ./build/publish.ps1 -Version 0.0.0-ci.${{ github.run_number }} -Output artifacts/publish
+          $iscc = 'C:\Program Files (x86)\Inno Setup 6\ISCC.exe'
+          if (-not (Test-Path $iscc)) { choco install innosetup --no-progress -y; if ($LASTEXITCODE) { throw 'Inno Setup install failed' } }
+          & $iscc /Q /DAppVersion=0.0.0-ci.${{ github.run_number }} installer/PlayMode.iss
+          if ($LASTEXITCODE) { throw 'ISCC failed' }
+      - uses: actions/upload-artifact@v4
+        with:
+          name: installer
+          path: artifacts/*.exe
+          retention-days: 7

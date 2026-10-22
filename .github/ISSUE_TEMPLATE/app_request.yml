@@ -1,0 +1,26 @@
+name: Add or fix an app in the catalog
+description: An app PlayMode should know how to close and bring back, or one it handles badly
+labels: [catalog]
+body:
+  - type: input
+    id: app
+    attributes:
+      label: App
+      placeholder: Name and where it's installed
+    validations:
+      required: true
+  - type: textarea
+    id: behaviour
+    attributes:
+      label: How it should be handled
+      description: >-
+        Close or freeze? How does it start at sign-in (Task Manager → Startup apps shows the command)? Does it pop
+        up a window when started? Anything with live work in it that should make PlayMode ask first?
+    validations:
+      required: true
+  - type: checkboxes
+    id: checked
+    attributes:
+      label: Checked
+      options:
+        - label: I've started the app with the flags above and it comes up the way it does at sign-in
