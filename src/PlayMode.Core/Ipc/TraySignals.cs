@@ -3,7 +3,7 @@ namespace PlayMode.Core.Ipc;
 /// <summary>Named events the running tray listens on, so the CLI (and hotkeys, scripts) can drive it.</summary>
 public static class TraySignals
 {
-    public static readonly IReadOnlyList<string> Names = ["On", "Off", "Toggle", "Exit"];
+    public static readonly IReadOnlyList<string> Names = ["On", "Off", "Toggle", "Settings", "Exit"];
 
     static string FullName(string name) => $@"Local\PlayMode.{name}";
 

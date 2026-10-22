@@ -51,6 +51,10 @@ internal static class Native
     [DllImport("kernel32.dll")]
     public static extern uint WaitForSingleObject(nint handle, uint milliseconds);
 
+    /// <returns>0 on success; APPMODEL_ERROR_NO_APPLICATION for ordinary (unpackaged) apps.</returns>
+    [DllImport("kernel32.dll", CharSet = CharSet.Unicode)]
+    public static extern int GetApplicationUserModelId(nint process, ref uint length, StringBuilder id);
+
     [DllImport("ntdll.dll")]
     public static extern int NtSuspendProcess(nint process);
 

@@ -5,8 +5,8 @@
 PlayMode closes (or freezes) the dev and background apps you choose — WSL, Docker, IDEs, sync clients, VPNs,
 indexers — when you sit down to play, and brings back *exactly what was running* when you're done.
 
-> **Status: early development.** The tray app, engine and service control work and are tested on real machines;
-> the settings window, catalog and installer are next. See the [roadmap](#roadmap).
+> **Status: early development.** The tray app, settings window, engine and service control work and are tested on
+> real machines; the hotkey, auto-switch and installer are next. See the [roadmap](#roadmap).
 
 ## Why we built it
 
@@ -46,16 +46,42 @@ PlayMode lives in the notification area. **Click the icon** to switch: blue `</>
 mode, amber while it's switching. If something with live work is running (WSL, a terminal, a coding agent), it asks
 first. Right-click for the rest: preview what would change, pick a profile, see the last report, start with Windows.
 
-Settings live in `%APPDATA%\PlayMode\config.json` (a starter file is created on first run; see
-[samples/config.example.json](samples/config.example.json) for what's possible).
+### Settings
 
-There's also a command line, handy for scripts and hotkeys:
+The first time it runs, PlayMode looks at what's installed and running and opens its settings window with a starting
+profile: the dev tools, sync clients and utilities it recognises, and your game launchers and voice chat on the
+never-touch list. Nothing is saved until you've looked it over.
+
+- **Add apps** shows what's running now, what starts with Windows, and a catalog of known apps. Known apps come
+  with settings that suit them (VS Code is frozen rather than closed, Spotify comes back minimised to the tray,
+  Proton VPN's services stop with it). For anything else, PlayMode works out a rule from what it sees: the app's
+  processes, and how Windows starts it at sign-in, so it comes back the same way.
+- **Every rule is spelled out** in plain words ("Close, reopen with --startup · asks first") and can be changed:
+  close or freeze, ask first, how to start it again, and whether to close or hide a window it pops up.
+- **Profiles** for different evenings: a competitive profile that closes everything, a casual one that leaves your
+  music alone. Pick one from the tray menu.
+- **Services** to stop while you play, picked from the ones other vendors installed. Services games and anti-cheat
+  need are never offered.
+
+Settings are stored in `%APPDATA%\PlayMode\config.json`, which you can also edit by hand (see
+[samples/config.example.json](samples/config.example.json)). Saving from the window keeps the previous file as
+`config.json.bak`.
+
+### Known apps
+
+The catalog lives in [catalog.json](src/PlayMode.Core/Discovery/catalog.json). Additions are welcome, with one rule:
+only startup flags you've checked. A wrong flag means a window popping up in the middle of a game.
+
+### Command line
+
+Handy for scripts and hotkeys:
 
 ```powershell
 playmodectl status            # current mode, and what's running from your profile
 playmodectl on --dry-run      # what switching on would affect
 playmodectl on | off          # switch directly
 playmodectl tray toggle       # ask the running tray to switch (with its usual prompts)
+playmodectl scan              # what PlayMode finds on this PC, and what it would suggest
 ```
 
 ## Stopping services safely
@@ -82,7 +108,7 @@ to run as admin all the time either. So the admin part is kept small and fenced 
 - [x] Core engine: plan, close/force/suspend, restore, window handling, crash/sign-in recovery, Tailscale, WSL
 - [x] Command line
 - [x] Tray app and service control without a UAC prompt each time
-- [ ] Settings window: pick apps from what's running and installed, with a catalog of known apps
+- [x] Settings window: pick apps from what's running and installed, with a catalog of known apps; profiles
 - [ ] Global hotkey, auto-switch when a game starts
 - [ ] Installer, winget package
 

@@ -1,4 +1,5 @@
-﻿using PlayMode.Core.Engine;
+using PlayMode.Core.Discovery;
+using PlayMode.Core.Engine;
 using PlayMode.Core.Ipc;
 using PlayMode.Core.Model;
 using PlayMode.Core.Platform.Windows;
@@ -11,8 +12,10 @@ const string Usage = """
       status                 current mode, last report, and what is running from the profile
       on                     switch to the play profile
       off                    switch back to dev mode, restoring what was running
-      tray <on|off|toggle|exit>
+      tray <on|off|toggle|settings|exit>
                              tell the running tray app to do it (shows its usual prompts and notifications)
+      scan [--verbose] [--all]
+                             what PlayMode finds on this machine: apps, startup items, services
       setup                  install or update service control (asks for admin once)
       remove-helper          uninstall service control (asks for admin)
 
@@ -44,7 +47,7 @@ if (command == "tray")
     var signal = positional.ElementAtOrDefault(1);
     if (signal is null || !TraySignals.Names.Contains(signal, StringComparer.OrdinalIgnoreCase))
     {
-        Console.Error.WriteLine("usage: playmodectl tray <on|off|toggle|exit>");
+        Console.Error.WriteLine("usage: playmodectl tray <on|off|toggle|settings|exit>");
         return 2;
     }
     if (TraySignals.Send(signal))
@@ -61,9 +64,38 @@ if (command == "remove-helper")
 }
 
 var configPath = Option("--config") ?? AppPaths.ConfigFile;
+
+if (command == "scan")
+{
+    var current = File.Exists(configPath) ? ConfigStore.Load(configPath) : null;
+    var scan = WindowsDiscovery.Scan(current, Catalog.BuiltIn);
+    var compare = current?.GetProfile(Option("--profile")) ?? new Profile { Name = "(none)" };
+    var ctx = new MatchContext(Environment.ProcessId, System.Diagnostics.Process.GetCurrentProcess().SessionId, current?.NeverTouch ?? []);
+    Console.WriteLine($"Comparing with profile: {compare.Name}");
+    Console.WriteLine();
+    foreach (var s in Suggestions.Apps(scan, Catalog.BuiltIn, compare, ctx).Where(s => s.IsRunning || s.Startup is not null || s.Installed))
+    {
+        var where = string.Join(", ", new[] { s.IsRunning ? "running" : null, s.Startup is not null ? "startup" : null, s.Installed ? "installed" : null }.OfType<string>());
+        Console.WriteLine($"{(s.AlreadyAdded ? "  added " : "        ")}{s.Title,-34} {s.Category,-9} {where,-26} {RuleText.Describe(s.Rule)}");
+        if (Flag("--verbose"))
+        {
+            Console.WriteLine($"          rule: {System.Text.Json.JsonSerializer.Serialize(s.Rule, PlayModeJson.Options).ReplaceLineEndings(" ")}");
+            if (s.App is { } app)
+                Console.WriteLine($"          main: {app.Main.Path}  folder: {app.Folder ?? "-"}  aumid: {app.AppUserModelId ?? "-"}  {app.WorkingSet / 1048576} MB");
+        }
+    }
+    Console.WriteLine();
+    Console.WriteLine("Services:");
+    foreach (var s in Suggestions.Services(scan, Catalog.BuiltIn, compare, includeWindows: Flag("--all")))
+        Console.WriteLine($"{(s.AlreadyAdded ? "  added " : "        ")}{s.Rule.Name,-34} {s.Title,-44} {(s.Running ? "running" : "stopped")}{(s.InCatalog ? " (catalog)" : "")}");
+    Console.WriteLine();
+    Console.WriteLine($"Leave alone: {string.Join(", ", Suggestions.LeaveAlone(scan, Catalog.BuiltIn, current?.NeverTouch ?? []).Select(e => e.Name))}");
+    return 0;
+}
+
 if (!File.Exists(configPath))
 {
-    Console.Error.WriteLine($"No config at {configPath}. See samples/config.example.json.");
+    Console.Error.WriteLine($"No config at {configPath}. Open PlayMode's settings from the tray to create one.");
     return 2;
 }
 

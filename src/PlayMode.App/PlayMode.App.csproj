@@ -13,9 +13,4 @@
     <ProjectReference Include="..\PlayMode.Core\PlayMode.Core.csproj" />
   </ItemGroup>
 
-  <ItemGroup>
-    <!-- First run writes this as the user's starting config. -->
-    <EmbeddedResource Include="..\..\samples\config.example.json" LogicalName="config.example.json" />
-  </ItemGroup>
-
 </Project>

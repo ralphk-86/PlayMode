@@ -81,8 +81,16 @@ public static class ConfigStore
     {
         if (config.Profiles.Count == 0)
             throw new InvalidDataException("Config has no profiles.");
+        if (config.Profiles.Any(p => string.IsNullOrWhiteSpace(p.Name)))
+            throw new InvalidDataException("A profile has no name.");
+        var twin = config.Profiles.GroupBy(p => p.Name.Trim(), StringComparer.OrdinalIgnoreCase).FirstOrDefault(g => g.Count() > 1);
+        if (twin is not null)
+            throw new InvalidDataException($"There are two profiles called '{twin.Key}'.");
         foreach (var profile in config.Profiles)
         {
+            var unnamed = profile.Apps.FirstOrDefault(a => string.IsNullOrWhiteSpace(a.Id));
+            if (unnamed is not null)
+                throw new InvalidDataException($"An app in profile '{profile.Name}' has no name.");
             var duplicate = profile.Apps.GroupBy(a => a.Id, StringComparer.OrdinalIgnoreCase).FirstOrDefault(g => g.Count() > 1);
             if (duplicate is not null)
                 throw new InvalidDataException($"Profile '{profile.Name}' lists app '{duplicate.Key}' twice.");

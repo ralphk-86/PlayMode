@@ -1,0 +1,312 @@
+{
+  // Known apps and how to handle them well. Each "rule" is a regular config rule; the settings window copies it
+  // into a profile, so anything here can still be changed per user. "detect" paths (environment variables allowed)
+  // mark an app as installed. Only flags that are known to work belong here: a wrong startup flag pops a window.
+  "apps": [
+    // ------------------------------------------------------------------ dev
+    {
+      "name": "WSL (all distros)",
+      "category": "Dev",
+      "notes": "Shuts every distro down with wsl --shutdown, which frees the memory the VM holds. Asks first.",
+      "detect": ["%SystemRoot%\\System32\\wsl.exe"],
+      "rule": { "id": "WSL", "kind": "Wsl", "risky": true }
+    },
+    {
+      "name": "Docker Desktop",
+      "category": "Dev",
+      "notes": "Running containers stop. Asks first.",
+      "detect": ["%ProgramFiles%\\Docker\\Docker\\Docker Desktop.exe"],
+      "services": ["com.docker.service"],
+      "rule": { "id": "Docker", "processes": ["Docker Desktop", "com.docker.*"], "risky": true }
+    },
+    {
+      "name": "Windows Terminal",
+      "category": "Dev",
+      "notes": "Closing it ends the shells inside, so it is not reopened. Asks first.",
+      "rule": { "id": "Terminal", "processes": ["WindowsTerminal", "OpenConsole"], "restore": false, "risky": true }
+    },
+    {
+      "name": "Visual Studio Code",
+      "category": "Dev",
+      "notes": "Frozen rather than closed: no CPU while you play, and everything is where you left it.",
+      "detect": ["%LOCALAPPDATA%\\Programs\\Microsoft VS Code\\Code.exe", "%ProgramFiles%\\Microsoft VS Code\\Code.exe"],
+      "rule": { "id": "VSCode", "processes": ["Code"], "action": "Suspend" }
+    },
+    {
+      "name": "Cursor",
+      "category": "Dev",
+      "notes": "Frozen rather than closed.",
+      "detect": ["%LOCALAPPDATA%\\Programs\\cursor\\Cursor.exe"],
+      "rule": { "id": "Cursor", "processes": ["Cursor"], "action": "Suspend" }
+    },
+    {
+      "name": "Visual Studio",
+      "category": "Dev",
+      "notes": "Frozen rather than closed.",
+      "rule": { "id": "VisualStudio", "processes": ["devenv"], "action": "Suspend" }
+    },
+    {
+      "name": "JetBrains IDEs",
+      "category": "Dev",
+      "notes": "IntelliJ, Rider, PyCharm, WebStorm, GoLand, CLion and friends. Frozen rather than closed.",
+      "rule": {
+        "id": "JetBrains",
+        "processes": ["idea64", "rider64", "pycharm64", "webstorm64", "goland64", "clion64", "rustrover64", "datagrip64", "phpstorm64", "rubymine64"],
+        "action": "Suspend"
+      }
+    },
+    {
+      "name": "PowerToys",
+      "category": "Dev",
+      "detect": ["%LOCALAPPDATA%\\PowerToys\\PowerToys.exe", "%ProgramFiles%\\PowerToys\\PowerToys.exe"],
+      "rule": { "id": "PowerToys", "processes": ["PowerToys", "PowerToys.*", "Microsoft.CmdPal.UI", "Microsoft.CmdPal.Ext.*"] }
+    },
+    {
+      "name": "GitHub Desktop",
+      "category": "Dev",
+      "detect": ["%LOCALAPPDATA%\\GitHubDesktop\\GitHubDesktop.exe"],
+      "rule": { "id": "GitHubDesktop", "processes": ["GitHubDesktop"] }
+    },
+    {
+      "name": "Postman",
+      "category": "Dev",
+      "detect": ["%LOCALAPPDATA%\\Postman\\Postman.exe"],
+      "rule": { "id": "Postman", "processes": ["Postman"] }
+    },
+
+    // ------------------------------------------------------------------ AI
+    {
+      "name": "Claude Code",
+      "category": "AI",
+      "notes": "Ends running sessions, so it is not reopened. Asks first.",
+      "detect": ["%USERPROFILE%\\.local\\bin\\claude.exe"],
+      "rule": { "id": "ClaudeCode", "processes": ["claude"], "pathLike": "*\\.local\\bin\\*", "restore": false, "risky": true }
+    },
+    {
+      "name": "Claude",
+      "category": "AI",
+      "detect": ["%LOCALAPPDATA%\\AnthropicClaude\\claude.exe"],
+      "rule": { "id": "ClaudeDesktop", "processes": ["claude"], "pathLike": "*\\AnthropicClaude\\*", "start": "%LOCALAPPDATA%\\AnthropicClaude\\claude.exe" }
+    },
+    {
+      "name": "Claude Code usage monitor",
+      "category": "AI",
+      "notes": "Relaunches itself when asked to quit, so it is ended directly.",
+      "rule": { "id": "ClaudeUsageMonitor", "processes": ["claude-code-usage-monitor"], "force": true }
+    },
+    {
+      "name": "Ollama",
+      "category": "AI",
+      "notes": "Frees the graphics memory a loaded model holds.",
+      "detect": ["%LOCALAPPDATA%\\Programs\\Ollama\\ollama app.exe"],
+      "rule": { "id": "Ollama", "processes": ["ollama app", "ollama"] }
+    },
+    {
+      "name": "LM Studio",
+      "category": "AI",
+      "notes": "Frees the graphics memory a loaded model holds.",
+      "detect": ["%LOCALAPPDATA%\\Programs\\LM Studio\\LM Studio.exe"],
+      "rule": { "id": "LMStudio", "processes": ["LM Studio"] }
+    },
+    {
+      "name": "Handy",
+      "category": "AI",
+      "notes": "Speech to text. It opens its window when started by hand, so PlayMode closes that again.",
+      "detect": ["%LOCALAPPDATA%\\Handy\\handy.exe"],
+      "rule": { "id": "Handy", "processes": ["handy"], "window": "Close", "windowTitle": "Handy" }
+    },
+    {
+      "name": "Microsoft Copilot",
+      "category": "AI",
+      "rule": { "id": "Copilot", "processes": ["copilotapp", "copilotapphost"], "args": "--no-startup-window" }
+    },
+
+    // ------------------------------------------------------------------ sync
+    {
+      "name": "OneDrive",
+      "category": "Sync",
+      "detect": ["%LOCALAPPDATA%\\Microsoft\\OneDrive\\OneDrive.exe", "%ProgramFiles%\\Microsoft OneDrive\\OneDrive.exe"],
+      "rule": { "id": "OneDrive", "processes": ["OneDrive"], "args": "/background" }
+    },
+    {
+      "name": "Google Drive",
+      "category": "Sync",
+      "rule": { "id": "GoogleDrive", "processes": ["GoogleDriveFS"], "args": "--startup_mode" }
+    },
+    {
+      "name": "Dropbox",
+      "category": "Sync",
+      "rule": { "id": "Dropbox", "processes": ["Dropbox"], "args": "/systemstartup" }
+    },
+    {
+      "name": "Nextcloud",
+      "category": "Sync",
+      "detect": ["%ProgramFiles%\\Nextcloud\\nextcloud.exe"],
+      "rule": { "id": "Nextcloud", "processes": ["nextcloud"], "args": "--background" }
+    },
+
+    // ------------------------------------------------------------------ chat
+    {
+      "name": "Slack",
+      "category": "Chat",
+      "rule": { "id": "Slack", "processes": ["slack"], "args": "--startup" }
+    },
+    {
+      "name": "Microsoft Teams",
+      "category": "Chat",
+      "rule": { "id": "Teams", "processes": ["ms-teams"] }
+    },
+    {
+      "name": "Telegram",
+      "category": "Chat",
+      "rule": { "id": "Telegram", "processes": ["Telegram"], "args": "-startintray" }
+    },
+    {
+      "name": "Signal",
+      "category": "Chat",
+      "detect": ["%LOCALAPPDATA%\\Programs\\signal-desktop\\Signal.exe"],
+      "rule": { "id": "Signal", "processes": ["Signal"], "args": "--start-in-tray" }
+    },
+    {
+      "name": "WhatsApp",
+      "category": "Chat",
+      "notes": "Not reopened: it would open its main window.",
+      "rule": { "id": "WhatsApp", "processes": ["WhatsApp.Root", "WhatsApp"], "restore": false }
+    },
+    {
+      "name": "Zoom",
+      "category": "Chat",
+      "notes": "Not reopened: it would open its main window.",
+      "rule": { "id": "Zoom", "processes": ["Zoom"], "restore": false }
+    },
+    {
+      "name": "Phone Link",
+      "category": "Chat",
+      "rule": { "id": "PhoneLink", "processes": ["PhoneExperienceHost"], "restore": false }
+    },
+
+    // ------------------------------------------------------------------ media
+    {
+      "name": "Spotify",
+      "category": "Media",
+      "detect": ["%APPDATA%\\Spotify\\Spotify.exe"],
+      "rule": { "id": "Spotify", "processes": ["Spotify"], "args": "--autostart --minimized" }
+    },
+
+    // ------------------------------------------------------------------ network
+    {
+      "name": "Tailscale",
+      "category": "Network",
+      "notes": "Disconnects, then reconnects afterwards with the same settings. The app keeps running.",
+      "detect": ["%ProgramFiles%\\Tailscale\\tailscale.exe"],
+      "rule": { "id": "Tailscale", "kind": "Tailscale" }
+    },
+    {
+      "name": "Proton VPN",
+      "category": "Network",
+      "notes": "Closing the app drops the tunnel. Its services stop too, and the app starts them again itself.",
+      "detect": ["%ProgramFiles%\\Proton\\VPN\\ProtonVPN.Launcher.exe"],
+      "services": ["ProtonVPN Service", "ProtonVPN WireGuard"],
+      "rule": { "id": "ProtonVPN", "processes": ["ProtonVPN.Client", "ProtonVPN.Launcher"], "start": "%ProgramFiles%\\Proton\\VPN\\ProtonVPN.Launcher.exe" }
+    },
+
+    // ------------------------------------------------------------------ utilities
+    {
+      "name": "Everything",
+      "category": "Utilities",
+      "notes": "File search. Its indexing service stops too.",
+      "detect": ["%ProgramFiles%\\Everything\\Everything.exe"],
+      "services": ["Everything"],
+      "rule": { "id": "Everything", "processes": ["Everything"], "args": "-startup" }
+    },
+    {
+      "name": "ShareX",
+      "category": "Utilities",
+      "detect": ["%ProgramFiles%\\ShareX\\ShareX.exe"],
+      "rule": { "id": "ShareX", "processes": ["ShareX"], "args": "-silent" }
+    },
+    {
+      "name": "UniGetUI",
+      "category": "Utilities",
+      "detect": ["%LOCALAPPDATA%\\Programs\\UniGetUI\\UniGetUI.exe"],
+      "rule": { "id": "UniGetUI", "processes": ["UniGetUI"], "args": "--daemon" }
+    },
+    {
+      "name": "Garmin Express",
+      "category": "Utilities",
+      "detect": ["%ProgramFiles(x86)%\\Garmin\\Express\\express.exe"],
+      "rule": { "id": "GarminExpress", "processes": ["express", "CefSharp.BrowserSubprocess"], "pathLike": "*\\Garmin\\*", "args": "/minimized" }
+    },
+    {
+      "name": "LG Monitor App",
+      "category": "Utilities",
+      "notes": "Started through its startup shortcut; the window it opens is hidden again.",
+      "detect": ["%APPDATA%\\Microsoft\\Windows\\Start Menu\\Programs\\Startup\\LG Monitor App Installer.lnk"],
+      "rule": {
+        "id": "LGMonitorApp",
+        "processes": ["LGMonitorAppManager"],
+        "start": "%APPDATA%\\Microsoft\\Windows\\Start Menu\\Programs\\Startup\\LG Monitor App Installer.lnk",
+        "window": "Hide",
+        "windowTitle": "LG Monitor App*"
+      }
+    },
+    {
+      "name": "AMD Noise Suppression",
+      "category": "Utilities",
+      "notes": "Leave it running if you use it for voice chat in games.",
+      "rule": { "id": "AMDNoiseSuppression", "processes": ["AMDNoiseSuppression"] }
+    }
+  ],
+
+  // Services worth stopping while you play. Anything else can be picked from what's installed.
+  "services": [
+    { "name": "WSearch", "title": "Windows Search indexing", "notes": "Indexing pauses while you play." },
+    { "name": "Everything", "title": "Everything file indexing" },
+    { "name": "com.docker.service", "title": "Docker Desktop service", "restart": false, "notes": "Docker Desktop starts it again itself." },
+    { "name": "ProtonVPN Service", "title": "Proton VPN service", "restart": false, "notes": "Proton VPN starts it again itself." },
+    { "name": "ProtonVPN WireGuard", "title": "Proton VPN tunnel", "restart": false, "notes": "Proton VPN starts it again itself." },
+    { "name": "AUEPLauncher", "title": "AMD User Experience Program", "notes": "Usage reporting." },
+    { "name": "GigabyteUpdateService", "title": "Gigabyte updater" },
+    { "name": "LGHUBUpdaterService", "title": "Logitech G HUB updater" },
+    { "name": "OptionsPlusUpdaterService", "title": "Logitech Options+ updater" },
+    { "name": "gupdate", "title": "Google updater" },
+    { "name": "edgeupdate", "title": "Microsoft Edge updater" },
+    { "name": "AdobeARMservice", "title": "Adobe updater" }
+  ],
+
+  // Services PlayMode won't suggest: games, anti-cheat and drivers need them, or PlayMode handles them another way.
+  "keepServices": [
+    "Tailscale", "Steam Client Service", "vgc", "EasyAntiCheat", "EasyAntiCheat_EOS", "BEService", "FACEIT",
+    "AMD External Events Utility", "NVDisplay.ContainerLocalSystem", "RtkAudioUniversalService", "PlayMode",
+    "WSLService", "WinDefend", "MDCoreSvc", "WdNisSvc", "Sense", "SecurityHealthService"
+  ],
+
+  // Suggested for the never-touch list: game launchers, voice chat, overlays and recorders.
+  "leaveAlone": [
+    { "name": "Discord", "processes": ["Discord"] },
+    { "name": "Steam", "processes": ["steam", "steamwebhelper"] },
+    { "name": "Epic Games Launcher", "processes": ["EpicGamesLauncher", "EpicWebHelper"] },
+    { "name": "GOG Galaxy", "processes": ["GalaxyClient"] },
+    { "name": "Battle.net", "processes": ["Battle.net"] },
+    { "name": "EA app", "processes": ["EADesktop"] },
+    { "name": "Ubisoft Connect", "processes": ["upc"] },
+    { "name": "Xbox app", "processes": ["XboxPcApp"] },
+    { "name": "Xbox Game Bar", "processes": ["GameBar"] },
+    { "name": "OBS Studio", "processes": ["obs64"] },
+    { "name": "AMD Software", "processes": ["RadeonSoftware"] },
+    { "name": "NVIDIA overlay", "processes": ["NVIDIA Overlay"] }
+  ],
+
+  // Never offered from the running-apps scan on their own: shells, runtimes hosting other apps, and plumbing.
+  "ignore": {
+    "processes": [
+      "pwsh", "powershell", "cmd", "bash", "wsl", "wslhost", "wslrelay", "wslservice", "ssh", "ssh-agent",
+      "msedgewebview2", "Widgets", "WidgetService", "crashpad_handler", "playmodectl", "DefenderSessionHelper",
+      "WindowsPackageManagerServer",
+      // Tailscale is handled by its own rule, which disconnects instead of closing the app.
+      "tailscale-ipn"
+    ],
+    // Games, and WSL's own programs (its GUI-app window host is msrdc.exe), which the WSL rule covers.
+    "paths": ["*\\steamapps\\*", "*\\Epic Games\\*", "*\\GOG Galaxy\\Games\\*", "*\\XboxGames\\*", "*\\Program Files\\WSL\\*"]
+  }
+}

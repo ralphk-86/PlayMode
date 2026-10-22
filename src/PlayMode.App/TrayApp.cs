@@ -1,4 +1,5 @@
 using System.Diagnostics;
+using PlayMode.App.Settings;
 using PlayMode.Core.Engine;
 using PlayMode.Core.Ipc;
 using PlayMode.Core.Model;
@@ -30,10 +31,11 @@ sealed class TrayApp : ApplicationContext
     readonly EventWaitHandle[] _signals = TraySignals.Create();
     readonly ILog _log = new FileLog(AppPaths.LogFile);
     readonly string _configPath;
+    SettingsForm? _settings;
     bool _busy;
     DateTime _lastSwitchEnd;
 
-    public TrayApp(string configPath)
+    public TrayApp(string configPath, bool openSettings = false)
     {
         _configPath = configPath;
         _ = _ui.Handle;   // create it now, on the UI thread
@@ -49,8 +51,8 @@ sealed class TrayApp : ApplicationContext
             new ToolStripSeparator(),
             _switch, _profiles, _preview, _report,
             new ToolStripSeparator(),
+            new ToolStripMenuItem("Settings…", null, (_, _) => OpenSettings()),
             _setup, _autostart,
-            new ToolStripMenuItem("Edit settings file", null, (_, _) => OpenInNotepad(_configPath)),
             new ToolStripMenuItem("Open log", null, (_, _) => OpenInNotepad(AppPaths.LogFile)),
             new ToolStripSeparator(),
             new ToolStripMenuItem("Exit", null, (_, _) => ExitThread()),
@@ -71,7 +73,12 @@ sealed class TrayApp : ApplicationContext
         new Thread(ListenForSignals) { IsBackground = true, Name = "PlayMode signals" }.Start();
         _log.Info($"Tray started (pid {Environment.ProcessId})");
 
-        EnsureConfig();
+        if (openSettings || !File.Exists(_configPath))
+        {
+            // First run: the settings window builds a starting profile from what it finds.
+            _ui.BeginInvoke(OpenSettings);
+            return;
+        }
         if (TryCreateEngine(out var engine, out _) && engine.NeedsRecovery())
         {
             _log.Info("Signed in again while in play mode; restoring dev mode");
@@ -186,6 +193,7 @@ sealed class TrayApp : ApplicationContext
             case "Exit": ExitThread(); break;
             case "On": _ = SwitchAsync(Target.On, interactive: false); break;
             case "Off": _ = SwitchAsync(Target.Off, interactive: false); break;
+            case "Settings": OpenSettings(); break;
             default: _ = SwitchAsync(Target.Toggle, interactive: false); break;
         }
     }
@@ -253,6 +261,13 @@ sealed class TrayApp : ApplicationContext
 
     bool TryLoadConfig(out PlayModeConfig config, bool quiet = false)
     {
+        if (!File.Exists(_configPath))
+        {
+            config = null!;
+            if (!quiet)
+                OpenSettings();
+            return false;
+        }
         try
         {
             config = ConfigStore.Load(_configPath);
@@ -267,15 +282,25 @@ sealed class TrayApp : ApplicationContext
         }
     }
 
-    void EnsureConfig()
+    void OpenSettings()
     {
-        if (File.Exists(_configPath))
+        if (_settings is { IsDisposed: false })
+        {
+            if (_settings.WindowState == FormWindowState.Minimized)
+                _settings.WindowState = FormWindowState.Normal;
+            _settings.Activate();
             return;
-        Directory.CreateDirectory(Path.GetDirectoryName(_configPath)!);
-        using (var sample = typeof(TrayApp).Assembly.GetManifestResourceStream("config.example.json")!)
-        using (var file = File.Create(_configPath))
-            sample.CopyTo(file);
-        Balloon("Welcome to PlayMode", "A starter settings file was created. Right-click the icon → Edit settings file to match your apps.");
+        }
+        var state = State();
+        _settings = new SettingsForm(_configPath, state.Mode == Mode.Play ? state.Profile : null);
+        _settings.Saved += () =>
+        {
+            _log.Info("Settings saved");
+            UpdateIcon();
+        };
+        _settings.FormClosed += (_, _) => _settings = null;
+        _settings.Show();
+        _settings.Activate();
     }
 
     // ---------------------------------------------------------------- helpers
@@ -307,6 +332,7 @@ sealed class TrayApp : ApplicationContext
             _tray.Dispose();
             _menu.Dispose();
             _refresh.Dispose();
+            _settings?.Dispose();
             _ui.Dispose();
             foreach (var signal in _signals)
                 signal.Dispose();

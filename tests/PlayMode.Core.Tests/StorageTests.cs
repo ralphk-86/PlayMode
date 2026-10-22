@@ -96,4 +96,16 @@ public sealed class StorageTests : IDisposable
         var error = Assert.ThrowsAny<Exception>(() => ConfigStore.Load(path));
         Assert.Contains(expected, error.Message, StringComparison.Ordinal);
     }
+
+    [Theory]
+    [InlineData("""{ "profiles": [ { "name": "A" }, { "name": "a" } ] }""", "two profiles called")]
+    [InlineData("""{ "profiles": [ { "name": " " } ] }""", "has no name")]
+    [InlineData("""{ "profiles": [ { "name": "A", "apps": [ { "id": "", "processes": ["x"] } ] } ] }""", "An app in profile 'A' has no name")]
+    public void Config_rejects_what_the_settings_window_could_produce_by_mistake(string json, string error)
+    {
+        var path = Path.Combine(_dir, "bad.json");
+        Directory.CreateDirectory(_dir);
+        File.WriteAllText(path, json);
+        Assert.Contains(error, Assert.Throws<InvalidDataException>(() => ConfigStore.Load(path)).Message, StringComparison.Ordinal);
+    }
 }
