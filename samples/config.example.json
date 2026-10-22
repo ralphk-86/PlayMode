@@ -1,0 +1,47 @@
+{
+  // Copy to %APPDATA%\PlayMode\config.json and trim to the apps you actually run.
+  // Apps are closed in this order and restored in this order (only those that were running).
+  "defaultProfile": "Competitive",
+
+  // Never touched by any profile, on top of PlayMode's built-in list of Windows processes.
+  "neverTouch": ["Discord", "steam", "steamwebhelper", "EpicGamesLauncher"],
+
+  "profiles": [
+    {
+      "name": "Competitive",
+      "confirmRisky": true,
+      "apps": [
+        // Dev stack: "risky" means PlayMode asks first, because live work is lost.
+        { "id": "WSL", "kind": "Wsl", "risky": true },
+        { "id": "Docker", "processes": ["Docker Desktop", "com.docker.*"], "risky": true },
+        { "id": "VSCode", "processes": ["Code"], "action": "Suspend" },
+        { "id": "Terminal", "processes": ["WindowsTerminal", "OpenConsole"], "restore": false, "risky": true },
+        { "id": "PowerToys", "processes": ["PowerToys", "PowerToys.*"], "start": "%LOCALAPPDATA%\\PowerToys\\PowerToys.exe" },
+
+        // Sync and chat
+        { "id": "OneDrive", "processes": ["OneDrive"], "args": "/background" },
+        { "id": "GoogleDrive", "processes": ["GoogleDriveFS"], "args": "--startup_mode" },
+        { "id": "Dropbox", "processes": ["Dropbox"], "args": "/systemstartup" },
+        { "id": "Slack", "processes": ["slack"], "args": "--startup" },
+        { "id": "Teams", "processes": ["ms-teams"], "restore": false },
+
+        // Media
+        { "id": "Spotify", "processes": ["Spotify"], "args": "--autostart --minimized" },
+
+        // Network
+        { "id": "Tailscale", "kind": "Tailscale" }
+      ],
+      "services": [
+        { "name": "WSearch" }
+      ]
+    },
+    {
+      "name": "Casual",
+      "apps": [
+        { "id": "WSL", "kind": "Wsl", "risky": true },
+        { "id": "Docker", "processes": ["Docker Desktop", "com.docker.*"], "risky": true },
+        { "id": "OneDrive", "processes": ["OneDrive"], "args": "/background" }
+      ]
+    }
+  ]
+}
