@@ -19,6 +19,8 @@ The first public release.
 - Service control without a UAC prompt on every switch: a small helper, approved once, that can only touch the
   services you picked.
 - `playmodectl` command line: `status`, `on`, `off`, `tray`, `scan`, `setup`, `remove-helper`.
+- Updates: a daily check for a new GitHub release (off switch in the tray menu), then one-click install that verifies
+  the download against the release's checksums and restarts the tray.
 - Per-user installer (no admin needed) and a portable zip.
 
 [0.1.0]: https://github.com/ralphk-86/PlayMode/releases/tag/v0.1.0

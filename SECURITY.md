@@ -21,6 +21,9 @@ The most interesting part is the elevated service helper (`src/PlayMode.Helper`)
 - triggering its scheduled tasks from an account other than the one that set it up;
 - tampering with the helper, its allowlist or its request files without admin rights.
 
+Also in scope: getting the updater to download or run anything other than an installer from this repository's own
+releases whose checksum matches.
+
 Also in scope: making the tray app or `playmodectl` close or suspend processes it should never touch, or start
 something other than what the user's rules say.
 

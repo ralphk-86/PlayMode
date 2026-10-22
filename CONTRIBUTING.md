@@ -44,7 +44,8 @@ It's the easiest way to contribute, and it helps everyone who uses the same app.
 - **The elevated helper stays small.** `PlayMode.Helper` runs as SYSTEM. Changes to it, to `HelperContract.cs`, or to
   how setup installs it get extra scrutiny; it must keep acting only on the intersection of the request and the
   approved allowlist.
-- **No telemetry, and no network calls** beyond the connectivity check after stopping Proton VPN.
+- **No telemetry.** The only network calls are the update check and download (GitHub only), and the connectivity
+  check after stopping Proton VPN. Anything new needs a good reason and a line in the README's network section.
 - Windows specifics live in `Platform/Windows`, behind the interfaces in `Platform/Abstractions.cs`, so the engine
   can be tested with the fakes in `tests/`.
 

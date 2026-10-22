@@ -26,4 +26,14 @@ $required = 'PlayMode.exe', 'playmodectl.exe', 'helper\PlayMode.Helper.exe', 'he
 foreach ($file in $required) {
     if (-not (Test-Path (Join-Path $Output $file))) { throw "Missing from publish output: $file" }
 }
+
+# Static set-up (icons, the update client) only runs when the tray starts; catch a broken one here, not on a user's PC.
+# Started directly rather than through the shell, which would stop to show a security warning for a network path.
+$start = [Diagnostics.ProcessStartInfo]::new((Join-Path $Output 'PlayMode.exe'), '--self-test')
+$start.UseShellExecute = $false
+$test = [Diagnostics.Process]::Start($start)
+if (-not $test.WaitForExit(60000)) { $test.Kill(); throw 'PlayMode.exe --self-test did not finish within a minute' }
+if ($test.ExitCode -ne 0) {
+    throw "PlayMode.exe --self-test failed:`n$(Get-Content (Join-Path ([IO.Path]::GetTempPath()) 'PlayMode-self-test.txt') -Raw -ErrorAction SilentlyContinue)"
+}
 Write-Host "Published PlayMode $Version to $Output"

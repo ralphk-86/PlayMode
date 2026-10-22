@@ -8,6 +8,14 @@ public sealed record UiSettings
     /// <summary>The play profile picked in the tray; null means the config's default.</summary>
     public string? Profile { get; init; }
 
+    /// <summary>Ask GitHub once a day whether a newer release is out.</summary>
+    public bool CheckForUpdates { get; init; } = true;
+
+    public DateTimeOffset? LastUpdateCheck { get; init; }
+
+    /// <summary>The newest version we've already shown a notification for, so it's announced once.</summary>
+    public string? AnnouncedVersion { get; init; }
+
     public static string FilePath => Path.Combine(AppPaths.DataDir, "settings.json");
 
     public static UiSettings Load()

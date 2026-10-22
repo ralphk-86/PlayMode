@@ -6,6 +6,7 @@ using PlayMode.Core.Model;
 using PlayMode.Core.Platform;
 using PlayMode.Core.Platform.Windows;
 using PlayMode.Core.Storage;
+using PlayMode.Core.Updates;
 
 namespace PlayMode.App;
 
@@ -28,31 +29,46 @@ sealed class TrayApp : ApplicationContext
     readonly ToolStripMenuItem _report = new("Last report…");
     readonly ToolStripMenuItem _setup = new();
     readonly ToolStripMenuItem _autostart = new("Start with Windows");
+    readonly ToolStripMenuItem _update = new() { Visible = false };
+    readonly ToolStripMenuItem _updates = new("Updates");
+    readonly ToolStripMenuItem _checkNow = new();
+    readonly ToolStripMenuItem _autoUpdates = new("Check for updates automatically");
+    readonly System.Windows.Forms.Timer _updateTimer = new() { Interval = 60_000 };   // a minute after start, then hourly
     readonly EventWaitHandle[] _signals = TraySignals.Create();
     readonly ILog _log = new FileLog(AppPaths.LogFile);
+    readonly Updater _updater;
     readonly string _configPath;
     SettingsForm? _settings;
+    AvailableUpdate? _available;
     bool _busy;
+    bool _updating;
+    bool _updateBalloon;
     DateTime _lastSwitchEnd;
 
     public TrayApp(string configPath, bool openSettings = false)
     {
         _configPath = configPath;
+        _updater = new Updater(_log);
         _ = _ui.Handle;   // create it now, on the UI thread
         _header.Font = new Font(_menu.Font, FontStyle.Bold);
+        _update.Font = new Font(_menu.Font, FontStyle.Bold);
         _switch.Click += async (_, _) => await SwitchAsync(Target.Toggle, interactive: true);
         _preview.Click += async (_, _) => await PreviewAsync();
         _report.Click += (_, _) => Show(State().LastReport ?? "Nothing yet.", "PlayMode: last report");
         _setup.Click += async (_, _) => await SetupAsync();
         _autostart.Click += (_, _) => Autostart.Set(!Autostart.IsEnabled);
+        _update.Click += async (_, _) => await InstallUpdateAsync();
+        _checkNow.Click += async (_, _) => await CheckForUpdatesAsync(manual: true);
+        _autoUpdates.Click += (_, _) => { var s = UiSettings.Load(); (s with { CheckForUpdates = !s.CheckForUpdates }).Save(); };
+        _updates.DropDownItems.AddRange([_checkNow, _autoUpdates]);
         _menu.Items.AddRange(
         [
-            _header,
+            _header, _update,
             new ToolStripSeparator(),
             _switch, _profiles, _preview, _report,
             new ToolStripSeparator(),
             new ToolStripMenuItem("Settings…", null, (_, _) => OpenSettings()),
-            _setup, _autostart,
+            _setup, _autostart, _updates,
             new ToolStripMenuItem("Open log", null, (_, _) => OpenInNotepad(AppPaths.LogFile)),
             new ToolStripSeparator(),
             new ToolStripMenuItem("Exit", null, (_, _) => ExitThread()),
@@ -65,11 +81,22 @@ sealed class TrayApp : ApplicationContext
             if (e.Button == MouseButtons.Left)
                 await SwitchAsync(Target.Toggle, interactive: true);
         };
+        _tray.BalloonTipClicked += async (_, _) =>
+        {
+            if (_updateBalloon)
+                await InstallUpdateAsync();
+        };
         _refresh.Tick += (_, _) => UpdateIcon();
+        _updateTimer.Tick += async (_, _) =>
+        {
+            _updateTimer.Interval = 3_600_000;
+            await CheckForUpdatesAsync(manual: false);
+        };
 
         UpdateIcon();
         _tray.Visible = true;
         _refresh.Start();
+        _updateTimer.Start();
         new Thread(ListenForSignals) { IsBackground = true, Name = "PlayMode signals" }.Start();
         _log.Info($"Tray started (pid {Environment.ProcessId})");
 
@@ -133,8 +160,14 @@ sealed class TrayApp : ApplicationContext
 
     static bool Ask(string text)
     {
-        // A hidden topmost owner keeps the question in front even if focus moved on while we were looking around.
-        using var owner = new Form
+        using var owner = TopmostOwner();
+        return MessageBox.Show(owner, text, "PlayMode", MessageBoxButtons.YesNo, MessageBoxIcon.Warning, MessageBoxDefaultButton.Button2) == DialogResult.Yes;
+    }
+
+    /// <summary>A hidden topmost owner keeps a question in front even if focus moved on in the meantime.</summary>
+    static Form TopmostOwner()
+    {
+        var owner = new Form
         {
             TopMost = true,
             ShowInTaskbar = false,
@@ -146,7 +179,7 @@ sealed class TrayApp : ApplicationContext
         };
         owner.Show();
         owner.Activate();
-        return MessageBox.Show(owner, text, "PlayMode", MessageBoxButtons.YesNo, MessageBoxIcon.Warning, MessageBoxDefaultButton.Button2) == DialogResult.Yes;
+        return owner;
     }
 
     async Task PreviewAsync()
@@ -171,6 +204,99 @@ sealed class TrayApp : ApplicationContext
             Balloon("Service control is set up", "PlayMode can now stop and restart the services in your settings.");
         else
             Balloon("Service control was not set up", error, ToolTipIcon.Warning);
+    }
+
+    // ---------------------------------------------------------------- updates
+
+    /// <summary>Automatic checks run at most once a day, and never in play mode or mid-switch.</summary>
+    async Task CheckForUpdatesAsync(bool manual)
+    {
+        var settings = UiSettings.Load();
+        if (!manual && (!settings.CheckForUpdates || _busy || _updating || State().Mode == Mode.Play
+            || DateTimeOffset.Now - settings.LastUpdateCheck < TimeSpan.FromDays(1)))
+            return;
+        try
+        {
+            _available = await Task.Run(() => _updater.CheckAsync());
+            (UiSettings.Load() with { LastUpdateCheck = DateTimeOffset.Now }).Save();
+        }
+        catch (Exception e) when (e is HttpRequestException or TaskCanceledException or System.Text.Json.JsonException or IOException)
+        {
+            _log.Info($"Update check failed: {e.Message}");
+            if (manual)
+                Show($"Couldn't check for updates: {e.Message}", "PlayMode");
+            return;
+        }
+
+        if (_available is null)
+        {
+            if (manual)
+                Show($"You have the latest version ({Updater.Current}).", "PlayMode");
+        }
+        else if (manual)
+        {
+            await InstallUpdateAsync();
+        }
+        else if (UiSettings.Load() is var latest && latest.AnnouncedVersion != _available.Version.ToString())
+        {
+            (latest with { AnnouncedVersion = _available.Version.ToString() }).Save();
+            Balloon($"PlayMode {_available.Version} is available", Updater.Installed ? "Click to install it." : "Click to open the download page.");
+            _updateBalloon = true;
+        }
+    }
+
+    async Task InstallUpdateAsync()
+    {
+        if (_available is not { } update || _updating)
+            return;
+        if (!Updater.Installed)
+        {
+            // A portable copy: the installer would put a second copy elsewhere, so point at the download instead.
+            OpenUrl(update.PageUrl);
+            return;
+        }
+        if (_busy || State().Mode == Mode.Play)
+        {
+            Show("Switch back to dev mode first, then install the update.", "PlayMode");
+            return;
+        }
+
+        var install = new TaskDialogButton("Install now");
+        var notes = new TaskDialogButton("What's new");
+        var page = new TaskDialogPage
+        {
+            Caption = "PlayMode",
+            Heading = $"PlayMode {update.Version} is available",
+            Text = $"You have {Updater.Current}. PlayMode closes while the update installs, then starts again.",
+            Icon = TaskDialogIcon.Information,
+            Buttons = { install, notes, TaskDialogButton.Cancel },
+        };
+        TaskDialogButton picked;
+        using (var owner = TopmostOwner())
+            picked = TaskDialog.ShowDialog(owner, page);
+        if (picked == notes)
+            OpenUrl(update.PageUrl);
+        if (picked != install)
+            return;
+
+        _updating = true;
+        _tray.Text = $"PlayMode: downloading {update.Version}…";
+        try
+        {
+            var installer = await Task.Run(() => _updater.DownloadAsync(update));
+            _updater.Install(installer);
+            ExitThread();   // the installer would ask us to anyway; it starts the new version when it's done
+        }
+        catch (Exception e) when (e is HttpRequestException or TaskCanceledException or IOException or InvalidDataException or System.ComponentModel.Win32Exception)
+        {
+            _log.Info($"Update failed: {e}");
+            Balloon("PlayMode: update failed", e.Message, ToolTipIcon.Error);
+        }
+        finally
+        {
+            _updating = false;
+            UpdateIcon();
+        }
     }
 
     // ---------------------------------------------------------------- signals from the CLI / hotkeys
@@ -238,6 +364,14 @@ sealed class TrayApp : ApplicationContext
         _setup.Visible = setupNeeded is not null;
         _setup.Text = $"{setupNeeded}: set up service control (admin)…";
         _autostart.Checked = Autostart.IsEnabled;
+
+        _update.Visible = _available is not null;
+        _update.Enabled = !_updating;
+        if (_available is not null)
+            _update.Text = Updater.Installed ? $"Install update {_available.Version}…" : $"Version {_available.Version} is available…";
+        _checkNow.Text = $"Check now (you have {Updater.Current})";
+        _checkNow.Enabled = !_updating;
+        _autoUpdates.Checked = UiSettings.Load().CheckForUpdates;
     }
 
     static string? PickedProfile(PlayModeConfig config)
@@ -305,8 +439,14 @@ sealed class TrayApp : ApplicationContext
 
     // ---------------------------------------------------------------- helpers
 
-    void Balloon(string title, string text, ToolTipIcon icon = ToolTipIcon.Info) =>
+    void Balloon(string title, string text, ToolTipIcon icon = ToolTipIcon.Info)
+    {
+        _updateBalloon = false;   // the caller sets it again if this one is about an update
         _tray.ShowBalloonTip(6000, title, string.IsNullOrWhiteSpace(text) ? " " : text, icon);
+    }
+
+    static void OpenUrl(string url) =>
+        Process.Start(new ProcessStartInfo(url) { UseShellExecute = true })?.Dispose();
 
     static void Show(string text, string title) =>
         MessageBox.Show(text, title, MessageBoxButtons.OK, MessageBoxIcon.Information);
@@ -320,6 +460,7 @@ sealed class TrayApp : ApplicationContext
     protected override void ExitThreadCore()
     {
         _refresh.Stop();
+        _updateTimer.Stop();
         _tray.Visible = false;
         _log.Info("Tray exited");
         base.ExitThreadCore();
@@ -332,6 +473,7 @@ sealed class TrayApp : ApplicationContext
             _tray.Dispose();
             _menu.Dispose();
             _refresh.Dispose();
+            _updateTimer.Dispose();
             _settings?.Dispose();
             _ui.Dispose();
             foreach (var signal in _signals)

@@ -1,9 +1,15 @@
-<Project Sdk="Microsoft.NET.Sdk">
+<!-- TreatAsLocalProperty: the release version is passed to every project, but the helper keeps its own (below). -->
+<Project Sdk="Microsoft.NET.Sdk" TreatAsLocalProperty="Version">
 
   <PropertyGroup>
     <!-- WinExe: no console window flashes when the scheduled task runs it. -->
     <OutputType>WinExe</OutputType>
     <AssemblyName>PlayMode.Helper</AssemblyName>
+    <!-- The tray asks for setup (a UAC prompt) whenever the installed helper differs from the bundled one. Keeping
+         the version and commit out of it means a PlayMode update only asks when the helper itself changed.
+         Bump this when it does. -->
+    <Version>1.0.0</Version>
+    <IncludeSourceRevisionInInformationalVersion>false</IncludeSourceRevisionInInformationalVersion>
   </PropertyGroup>
 
   <ItemGroup>

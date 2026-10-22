@@ -61,6 +61,8 @@ Root: HKCU; Subkey: "Environment"; ValueType: expandsz; ValueName: "Path"; Value
 
 [Run]
 Filename: "{app}\PlayMode.exe"; Description: "Start PlayMode now"; Flags: nowait postinstall skipifsilent
+; Updates from the tray pass /RELAUNCH so the new version starts again after a silent install.
+Filename: "{app}\PlayMode.exe"; Flags: nowait; Check: RelaunchRequested
 
 [Code]
 const
@@ -87,6 +89,11 @@ begin
               'Or from a terminal: winget install Microsoft.DotNet.DesktopRuntime.10',
               mbConfirmation, MB_YESNO) = IDYES then
       ShellExec('open', DotNetUrl, '', '', SW_SHOWNORMAL, ewNoWait, ErrorCode);
+end;
+
+function RelaunchRequested: Boolean;
+begin
+  Result := Pos('/RELAUNCH', Uppercase(GetCmdTail)) > 0;
 end;
 
 function Ctl(const Params: String): Boolean;

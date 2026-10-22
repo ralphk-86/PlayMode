@@ -71,11 +71,20 @@ On first run, PlayMode opens its settings window with a suggested profile. Look 
 your profile stops any services, the tray menu offers the one-time service-control setup described
 [below](#stopping-services-safely).
 
+### Updates
+
+PlayMode checks GitHub for a new release once a day. When there is one, it shows a notification and an *Install
+update* item at the top of the tray menu: one click downloads it, checks it against the release's checksums, installs
+it and restarts the tray. It never updates during play mode, and an update doesn't ask for admin again unless the
+service helper itself changed. You can also check by hand under **Updates** in the tray menu, turn the daily check
+off there, or use `winget upgrade ralphk-86.PlayMode`. Portable copies get a link to the download page instead.
+
 ## Using it
 
 PlayMode lives in the notification area. **Click the icon** to switch: a blue DEV computer is dev mode, a red GAME one is play
 mode, amber while it's switching. If something with live work is running (WSL, a terminal, a coding agent), it asks
-first. Right-click for the rest: preview what would change, pick a profile, see the last report, start with Windows.
+first. Right-click for the rest: preview what would change, pick a profile, see the last report, start with Windows,
+and updates.
 
 ### Settings
 
@@ -150,9 +159,14 @@ should be able to check. Here is everything it touches:
 | Two on-demand scheduled tasks | `\PlayMode\ServicesStop` and `\PlayMode\ServicesStart` | Only after service-control setup |
 | Helper requests, results and log | `C:\ProgramData\PlayMode` | Only after service-control setup |
 
-It never touches Windows' own processes, whatever a rule says. There's no telemetry and no update check. The only
-network activity is this:
+It never touches Windows' own processes, whatever a rule says. There's no telemetry. All of its network activity is
+this:
 
+- **Update check:** once a day, and never in play mode, it asks GitHub for this repository's latest release
+  (`api.github.com`). Nothing is sent but a normal web request with `PlayMode/<version>` as its user agent. Turn it off
+  under **Updates** in the tray menu.
+- **Updating,** only when you click *Install*: it downloads the installer and `SHA256SUMS.txt` from that release,
+  only from this repository's release downloads, and runs the installer only if the checksum matches.
 - If you use Tailscale, PlayMode runs Tailscale's own command-line tool to disconnect and reconnect.
 - If your profile stops Proton VPN's services, the helper then checks the internet still works by briefly opening a
   connection to 1.1.1.1 or 8.8.8.8, sending no data. If Proton's kill switch has left you offline, it runs Proton's
