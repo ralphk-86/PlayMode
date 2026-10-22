@@ -2,7 +2,9 @@
 
   <PropertyGroup>
     <OutputType>Exe</OutputType>
-    <AssemblyName>playmode</AssemblyName>
+    <!-- Not "playmode": Windows file names ignore case, and the tray app is PlayMode.exe. -->
+    <AssemblyName>playmodectl</AssemblyName>
+    <BundleHelper>true</BundleHelper>
   </PropertyGroup>
 
   <ItemGroup>

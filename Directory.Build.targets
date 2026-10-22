@@ -1,0 +1,22 @@
+<Project>
+  <!-- Projects that can run setup (the tray app and the CLI) ship the elevated helper in a helper\ subfolder.
+       Setup copies it from there into Program Files, so the copy that runs elevated is admin-only. -->
+  <ItemGroup Condition="'$(BundleHelper)' == 'true'">
+    <ProjectReference Include="$(MSBuildThisFileDirectory)src\PlayMode.Helper\PlayMode.Helper.csproj" ReferenceOutputAssembly="false" />
+  </ItemGroup>
+
+  <!-- Recursive on purpose: the real Windows implementations of some dependencies live in runtimes\win\. -->
+  <Target Name="BundleHelperOnBuild" AfterTargets="Build" Condition="'$(BundleHelper)' == 'true'">
+    <ItemGroup>
+      <_HelperFiles Include="$(MSBuildThisFileDirectory)src\PlayMode.Helper\bin\$(Configuration)\$(TargetFramework)\**\*" />
+    </ItemGroup>
+    <Copy SourceFiles="@(_HelperFiles)" DestinationFiles="@(_HelperFiles->'$(OutDir)helper\%(RecursiveDir)%(Filename)%(Extension)')" SkipUnchangedFiles="true" />
+  </Target>
+
+  <Target Name="BundleHelperOnPublish" AfterTargets="Publish" Condition="'$(BundleHelper)' == 'true'">
+    <ItemGroup>
+      <_HelperFiles Include="$(MSBuildThisFileDirectory)src\PlayMode.Helper\bin\$(Configuration)\$(TargetFramework)\**\*" />
+    </ItemGroup>
+    <Copy SourceFiles="@(_HelperFiles)" DestinationFiles="@(_HelperFiles->'$(PublishDir)helper\%(RecursiveDir)%(Filename)%(Extension)')" SkipUnchangedFiles="true" />
+  </Target>
+</Project>

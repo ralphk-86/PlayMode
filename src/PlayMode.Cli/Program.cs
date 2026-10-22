@@ -1,25 +1,31 @@
 ﻿using PlayMode.Core.Engine;
+using PlayMode.Core.Ipc;
 using PlayMode.Core.Model;
 using PlayMode.Core.Platform.Windows;
 using PlayMode.Core.Storage;
 
 const string Usage = """
-    usage: playmode <command> [options]
+    usage: playmodectl <command> [options]
 
     commands:
-      status            current mode, last report, and what is running from the profile
-      on                switch to the play profile
-      off               switch back to dev mode, restoring what was running
+      status                 current mode, last report, and what is running from the profile
+      on                     switch to the play profile
+      off                    switch back to dev mode, restoring what was running
+      tray <on|off|toggle|exit>
+                             tell the running tray app to do it (shows its usual prompts and notifications)
+      setup                  install or update service control (asks for admin once)
+      remove-helper          uninstall service control (asks for admin)
 
     options:
-      --profile <name>  profile to use (default: the config's default profile)
-      --config <path>   config file (default: %APPDATA%\PlayMode\config.json)
-      --exclude <ids>   comma-separated app ids to leave alone this time
-      --dry-run         show what would happen, change nothing
-      --yes             don't ask before closing apps marked risky
+      --profile <name>       profile to use (default: the one picked in the tray, else the config default)
+      --config <path>        config file (default: %APPDATA%\PlayMode\config.json)
+      --exclude <ids>        comma-separated app ids to leave alone this time
+      --dry-run              show what would happen, change nothing
+      --yes                  don't ask before closing apps marked risky
     """;
 
-var command = args.FirstOrDefault(a => !a.StartsWith("--", StringComparison.Ordinal))?.ToLowerInvariant() ?? "status";
+var positional = args.Where(a => !a.StartsWith("--", StringComparison.Ordinal)).ToList();
+var command = positional.FirstOrDefault()?.ToLowerInvariant() ?? "status";
 string? Option(string name)
 {
     var i = Array.IndexOf(args, name);
@@ -27,10 +33,31 @@ string? Option(string name)
 }
 bool Flag(string name) => args.Contains(name);
 
-if (command is "help" or "-h" or "--help" || Flag("--help"))
+if (command is "help" or "-h" || Flag("--help"))
 {
     Console.WriteLine(Usage);
     return 0;
+}
+
+if (command == "tray")
+{
+    var signal = positional.ElementAtOrDefault(1);
+    if (signal is null || !TraySignals.Names.Contains(signal, StringComparer.OrdinalIgnoreCase))
+    {
+        Console.Error.WriteLine("usage: playmodectl tray <on|off|toggle|exit>");
+        return 2;
+    }
+    if (TraySignals.Send(signal))
+        return 0;
+    Console.Error.WriteLine("The PlayMode tray app isn't running.");
+    return 1;
+}
+
+if (command == "remove-helper")
+{
+    var error = ServiceHelperClient.RunUninstall();
+    Console.WriteLine(error ?? "Service control removed.");
+    return error is null ? 0 : 1;
 }
 
 var configPath = Option("--config") ?? AppPaths.ConfigFile;
@@ -51,6 +78,13 @@ catch (Exception e) when (e is InvalidDataException or InvalidOperationException
     return 2;
 }
 
+if (command == "setup")
+{
+    var error = ServiceHelperClient.RunSetup(config);
+    Console.WriteLine(error ?? $"Service control is set up for: {string.Join(", ", ServiceHelperClient.AllowlistFor(config).Select(s => s.Name))}");
+    return error is null ? 0 : 1;
+}
+
 var exclude = (Option("--exclude") ?? "").Split(',', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries);
 if (exclude.Length > 0)
 {
@@ -61,7 +95,8 @@ if (exclude.Length > 0)
 }
 
 var engine = new PlayModeEngine(WindowsPlatform.Create(echoLog: true), config);
-var profile = Option("--profile");
+var picked = UiSettings.Load().Profile;
+var profile = Option("--profile") ?? (config.Profiles.Any(p => p.Name == picked) ? picked : null);
 
 switch (command)
 {
@@ -72,6 +107,7 @@ switch (command)
             Console.WriteLine($"Closed: {string.Join(", ", state.Closed.Select(c => c.Id))}");
         if (state.LastReport is not null)
             Console.WriteLine($"Last: {state.LastReport}");
+        Console.WriteLine($"Service control: {ServiceHelperClient.SetupNeeded(config) ?? "ready"}");
         Console.WriteLine($"Running from '{config.GetProfile(profile).Name}':");
         Console.WriteLine(engine.BuildPlan(profile).Describe());
         return 0;

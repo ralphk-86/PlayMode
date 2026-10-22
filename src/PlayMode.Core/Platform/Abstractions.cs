@@ -41,7 +41,9 @@ public interface IServiceControl
     IReadOnlyList<string> Running(IEnumerable<string> names);
 
     /// <returns>Null when the elevated helper is not installed or timed out.</returns>
-    Task<ServiceResult?> StopAsync(CancellationToken ct);
+    Task<ServiceResult?> StopAsync(IReadOnlyList<string> names, CancellationToken ct);
+
+    /// <summary>Restarts whatever the helper stopped (it keeps its own record).</summary>
     Task<ServiceResult?> StartAsync(CancellationToken ct);
 }
 

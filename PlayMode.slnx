@@ -1,7 +1,9 @@
 <Solution>
   <Folder Name="/src/">
+    <Project Path="src/PlayMode.App/PlayMode.App.csproj" />
     <Project Path="src/PlayMode.Cli/PlayMode.Cli.csproj" />
     <Project Path="src/PlayMode.Core/PlayMode.Core.csproj" />
+    <Project Path="src/PlayMode.Helper/PlayMode.Helper.csproj" />
   </Folder>
   <Folder Name="/tests/">
     <Project Path="tests/PlayMode.Core.Tests/PlayMode.Core.Tests.csproj" />

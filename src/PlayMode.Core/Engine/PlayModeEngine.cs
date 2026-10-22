@@ -98,7 +98,8 @@ public sealed class PlayModeEngine(PlatformServices os, PlayModeConfig config, E
                 state.Closed.Add(new ClosedApp(item.Rule.Id, item.MainPath));
         }
         os.Store.Save(state);
-        os.Log.Info($"{profile.Name} ON. Affecting: {(plan.Items.Count > 0 ? string.Join(", ", plan.Items.Select(i => i.Rule.Id)) : "nothing running")}");
+        var affecting = plan.Items.Select(i => i.Rule.Id).Concat(plan.RunningServices.Count > 0 ? [$"{plan.RunningServices.Count} services"] : []).ToList();
+        os.Log.Info($"{profile.Name} ON. Affecting: {(affecting.Count > 0 ? string.Join(", ", affecting) : "nothing running")}");
 
         var notes = new List<string>();
         var apps = plan.Items.Where(i => i.Rule.Kind == AppKind.Process).ToList();
@@ -106,11 +107,14 @@ public sealed class PlayModeEngine(PlatformServices os, PlayModeConfig config, E
         var suspended = 0;
         foreach (var item in apps.Where(i => i.Rule.Action == CloseAction.Suspend))
         {
-            var pids = item.Processes.Where(p => os.Control.Suspend(p.Id)).Select(p => p.Id).ToList();
-            if (pids.Count < item.Processes.Count)
-                notes.Add($"{item.Rule.Id}: could not suspend {item.Processes.Count - pids.Count} process(es)");
             var index = state.Closed.FindIndex(c => c.Id == item.Rule.Id);
-            state.Closed[index] = state.Closed[index] with { SuspendedPids = [.. state.Closed[index].SuspendedPids.Union(pids)] };
+            // Windows counts suspends, and restore resumes once: never freeze the same process twice.
+            var already = state.Closed[index].SuspendedPids.ToHashSet();
+            var fresh = item.Processes.Where(p => !already.Contains(p.Id)).ToList();
+            var pids = fresh.Where(p => os.Control.Suspend(p.Id)).Select(p => p.Id).ToList();
+            if (pids.Count < fresh.Count)
+                notes.Add($"{item.Rule.Id}: could not suspend {fresh.Count - pids.Count} process(es)");
+            state.Closed[index] = state.Closed[index] with { SuspendedPids = [.. already.Union(pids)] };
             if (pids.Count > 0)
                 suspended++;
         }
@@ -143,7 +147,7 @@ public sealed class PlayModeEngine(PlatformServices os, PlayModeConfig config, E
         ServiceResult? services = null;
         if (plan.RunningServices.Count > 0)
         {
-            services = await os.Services.StopAsync(ct).ConfigureAwait(false);
+            services = await os.Services.StopAsync(plan.RunningServices, ct).ConfigureAwait(false);
             if (services is null)
                 notes.Add("Services were not stopped (helper missing or timed out)");
             else

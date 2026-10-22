@@ -3,6 +3,7 @@ using System.Runtime.InteropServices;
 using System.ServiceProcess;
 using System.Text.Json;
 using PlayMode.Core.Engine;
+using PlayMode.Shared;
 
 namespace PlayMode.Core.Platform.Windows;
 
@@ -100,7 +101,7 @@ public sealed class WslCli : IWsl
 }
 
 /// <summary>Reads service state directly; stopping/starting goes through the elevated helper.</summary>
-public sealed class WindowsServiceControl(Func<string, CancellationToken, Task<ServiceResult?>>? helper, ILog log) : IServiceControl
+public sealed class WindowsServiceControl(ServiceHelperClient helper) : IServiceControl
 {
     public IReadOnlyList<string> Running(IEnumerable<string> names)
     {
@@ -121,19 +122,9 @@ public sealed class WindowsServiceControl(Func<string, CancellationToken, Task<S
         return running;
     }
 
-    public Task<ServiceResult?> StopAsync(CancellationToken ct) => Run("Stop", ct);
+    public Task<ServiceResult?> StopAsync(IReadOnlyList<string> names, CancellationToken ct) => helper.RunAsync(HelperAction.Stop, names, ct);
 
-    public Task<ServiceResult?> StartAsync(CancellationToken ct) => Run("Start", ct);
-
-    Task<ServiceResult?> Run(string action, CancellationToken ct)
-    {
-        if (helper is null)
-        {
-            log.Info($"Service helper not installed; skipping service {action.ToLowerInvariant()}");
-            return Task.FromResult<ServiceResult?>(null);
-        }
-        return helper(action, ct);
-    }
+    public Task<ServiceResult?> StartAsync(CancellationToken ct) => helper.RunAsync(HelperAction.Start, [], ct);
 }
 
 public sealed class WindowsSystemInfo : ISystemInfo

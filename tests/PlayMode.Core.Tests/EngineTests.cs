@@ -195,6 +195,21 @@ public class EngineTests
     }
 
     [Fact]
+    public async Task Switching_on_twice_never_leaves_a_suspended_app_frozen_after_restore()
+    {
+        // Found live: a second "on" while already playing suspended the IDE again, and one resume wasn't enough.
+        var ide = _os.Add("rider64");
+        var engine = Engine(App("Rider", "rider64") with { Action = CloseAction.Suspend });
+
+        await engine.EnableAsync(null, null);
+        await engine.EnableAsync(null, null);
+        Assert.Equal(1, ide.SuspendCount);
+
+        await engine.DisableAsync();
+        Assert.False(ide.Suspended);
+    }
+
+    [Fact]
     public async Task Relaunches_a_suspended_app_that_died_meanwhile()
     {
         var ide = _os.Add("rider64", @"C:\JetBrains\rider64.exe");

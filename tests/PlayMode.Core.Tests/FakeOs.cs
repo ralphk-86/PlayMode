@@ -13,7 +13,9 @@ sealed class FakeProc
     public int Session { get; init; } = 1;
     public long WorkingSet { get; init; } = 100L * 1024 * 1024;
     public bool Alive { get; set; } = true;
-    public bool Suspended { get; set; }
+    /// <summary>Like Windows, suspends nest: each one needs its own resume.</summary>
+    public int SuspendCount { get; set; }
+    public bool Suspended => SuspendCount > 0;
     public bool IgnoresClose { get; init; }
     public bool Unkillable { get; init; }
     public List<FakeWindow> Windows { get; } = [];
@@ -111,15 +113,15 @@ sealed class FakeOs : IProcessSource, IProcessControl, IWindowControl, IServiceC
             Add(p.Name, p.Path, p.Session);
     }
 
-    public bool Suspend(int pid) => Set(pid, suspended: true);
-    public bool Resume(int pid) => Set(pid, suspended: false);
+    public bool Suspend(int pid) => Adjust(pid, +1);
+    public bool Resume(int pid) => Adjust(pid, -1);
 
-    bool Set(int pid, bool suspended)
+    bool Adjust(int pid, int delta)
     {
         var p = Procs.FirstOrDefault(x => x.Id == pid && x.Alive);
         if (p is null)
             return false;
-        p.Suspended = suspended;
+        p.SuspendCount = Math.Max(0, p.SuspendCount + delta);
         return true;
     }
 
@@ -153,7 +155,13 @@ sealed class FakeOs : IProcessSource, IProcessControl, IWindowControl, IServiceC
 
     // IServiceControl
     public IReadOnlyList<string> Running(IEnumerable<string> names) => [.. names.Where(RunningServices.Contains)];
-    public Task<ServiceResult?> StopAsync(CancellationToken ct) { StopCalls++; return Task.FromResult(StopResult); }
+    public List<string> StopRequested { get; } = [];
+    public Task<ServiceResult?> StopAsync(IReadOnlyList<string> names, CancellationToken ct)
+    {
+        StopCalls++;
+        StopRequested.AddRange(names);
+        return Task.FromResult(StopResult);
+    }
     public Task<ServiceResult?> StartAsync(CancellationToken ct) { StartCalls++; return Task.FromResult(StartResult); }
 
     // ITailscale
