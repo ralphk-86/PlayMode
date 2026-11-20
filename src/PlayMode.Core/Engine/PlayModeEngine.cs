@@ -223,11 +223,6 @@ public sealed class PlayModeEngine(PlatformServices os, PlayModeConfig config, E
         if (state.TailscaleWasUp && os.Tailscale.IsInstalled && !os.Tailscale.IsUp() && !os.Tailscale.Up())
             notes.Add("Tailscale did not reconnect");
 
-        // Driven by the saved state alone, so it also works after a reboot or a profile change.
-        var mouseOn = state.MouseBefore is { } before && os.Mouse.Set(before);
-        if (state.MouseBefore is not null && !mouseOn)
-            notes.Add("Mouse acceleration could not be restored");
-
         var snapshot = os.Processes.Snapshot();
         var ctx = Context;
         var launched = new List<AppRule>();
@@ -264,6 +259,12 @@ public sealed class PlayModeEngine(PlatformServices os, PlayModeConfig config, E
             else
                 notes.Add($"{rule.Id}: {error}");
         }
+
+        // Driven by the saved state alone, so it also works after a reboot or a profile change. After resuming:
+        // setting the mouse broadcasts a settings change, which frozen windows can't answer.
+        var mouseOn = state.MouseBefore is { } before && os.Mouse.Set(before);
+        if (state.MouseBefore is not null && !mouseOn)
+            notes.Add("Mouse acceleration could not be restored");
 
         // Confirm they came up, and put away windows that a manual launch shows but autostart doesn't.
         var tuck = launched.Where(r => r.Window != WindowAction.None).ToList();

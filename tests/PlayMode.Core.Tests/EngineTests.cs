@@ -472,6 +472,24 @@ public class EngineTests
         Assert.Equal(new MouseParams(6, 10, 1), seenAtSet!.MouseBefore);
     }
 
+    [Fact]
+    public async Task Mouse_is_restored_only_after_frozen_apps_are_resumed()
+    {
+        // Setting the mouse broadcasts a settings change to every window; frozen windows can't answer it.
+        var ide = _os.Add("rider64");
+        var profile = new Profile { Name = "Gaming", MouseAccelerationOff = true, Apps = [App("Rider", "rider64") with { Action = CloseAction.Suspend }] };
+        var engine = Engine(profile);
+        await engine.EnableAsync(null, null);
+        Assert.True(ide.Suspended);
+
+        bool? frozenAtRestore = null;
+        var spy = _os.Platform with { Mouse = new SpyMouse(_os, () => frozenAtRestore ??= ide.Suspended) };
+        await new PlayModeEngine(spy, new PlayModeConfig { Profiles = [profile] }).DisableAsync();
+
+        Assert.False(frozenAtRestore);
+        Assert.Equal(new MouseParams(6, 10, 1), _os.Mouse);
+    }
+
     sealed class SpyMouse(IMouseSettings inner, Action onSet) : IMouseSettings
     {
         public MouseParams? Get() => inner.Get();
