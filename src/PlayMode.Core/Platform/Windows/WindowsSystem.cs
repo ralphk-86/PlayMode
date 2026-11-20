@@ -3,6 +3,7 @@ using System.Runtime.InteropServices;
 using System.ServiceProcess;
 using System.Text.Json;
 using PlayMode.Core.Engine;
+using PlayMode.Core.Model;
 using PlayMode.Shared;
 
 namespace PlayMode.Core.Platform.Windows;
@@ -125,6 +126,22 @@ public sealed class WindowsServiceControl(ServiceHelperClient helper) : IService
     public Task<ServiceResult?> StopAsync(IReadOnlyList<string> names, CancellationToken ct) => helper.RunAsync(HelperAction.Stop, names, ct);
 
     public Task<ServiceResult?> StartAsync(CancellationToken ct) => helper.RunAsync(HelperAction.Start, [], ct);
+}
+
+/// <summary>Mouse acceleration ("Enhance pointer precision") through SystemParametersInfo, so changes apply live.</summary>
+public sealed class WindowsMouseSettings : IMouseSettings
+{
+    public MouseParams? Get()
+    {
+        var values = new int[3];
+        return Native.SystemParametersInfo(Native.SPI_GETMOUSE, 0, values, 0)
+            ? new MouseParams(values[0], values[1], values[2])
+            : null;
+    }
+
+    public bool Set(MouseParams value) =>
+        Native.SystemParametersInfo(Native.SPI_SETMOUSE, 0, [value.Threshold1, value.Threshold2, value.Speed],
+            Native.SPIF_UPDATEINIFILE | Native.SPIF_SENDCHANGE);
 }
 
 public sealed class WindowsSystemInfo : ISystemInfo

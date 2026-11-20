@@ -29,7 +29,7 @@ sealed class FakeWindow(nint handle, string title)
 }
 
 /// <summary>An in-memory Windows: processes, windows, services, Tailscale, WSL, clock and state.</summary>
-sealed class FakeOs : IProcessSource, IProcessControl, IWindowControl, IServiceControl, ITailscale, IWsl, ISystemInfo, IStateStore, IClock, ILog
+sealed class FakeOs : IProcessSource, IProcessControl, IWindowControl, IServiceControl, ITailscale, IWsl, IMouseSettings, ISystemInfo, IStateStore, IClock, ILog
 {
     int _nextPid = 1000;
     nint _nextWindow = 1;
@@ -66,7 +66,23 @@ sealed class FakeOs : IProcessSource, IProcessControl, IWindowControl, IServiceC
     public DateTimeOffset? SessionLogonTime { get; set; } = new DateTimeOffset(2026, 1, 1, 8, 0, 0, TimeSpan.Zero);
     public DateTimeOffset Now { get; private set; } = new(2026, 1, 1, 12, 0, 0, TimeSpan.Zero);
 
-    public PlatformServices Platform => new(this, this, this, this, this, this, this, this, this, this);
+    public PlatformServices Platform => new(this, this, this, this, this, this, this, this, this, this, this);
+
+    /// <summary>Null makes the read fail. Default is Windows' own "Enhance pointer precision" values.</summary>
+    public MouseParams? Mouse { get; set; } = new(6, 10, 1);
+    public bool MouseSetFails { get; set; }
+    public List<MouseParams> MouseSets { get; } = [];
+
+    MouseParams? IMouseSettings.Get() => Mouse;
+
+    bool IMouseSettings.Set(MouseParams value)
+    {
+        MouseSets.Add(value);
+        if (MouseSetFails)
+            return false;
+        Mouse = value;
+        return true;
+    }
 
     public FakeProc Add(string name, string? path = null, int session = 1, bool ignoresClose = false, bool unkillable = false, params string[] windows)
     {

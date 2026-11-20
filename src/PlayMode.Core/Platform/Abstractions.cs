@@ -61,6 +61,16 @@ public interface IWsl
     bool Shutdown();
 }
 
+public interface IMouseSettings
+{
+    /// <returns>Null when Windows would not say.</returns>
+    MouseParams? Get();
+
+    /// <summary>Applies live and persists.</summary>
+    /// <returns>False when Windows refused.</returns>
+    bool Set(MouseParams value);
+}
+
 public interface ISystemInfo
 {
     /// <summary>When the current user signed in. Unlike boot time, this resets on a Fast Startup power-on.</summary>
@@ -91,6 +101,7 @@ public sealed record PlatformServices(
     IServiceControl Services,
     ITailscale Tailscale,
     IWsl Wsl,
+    IMouseSettings Mouse,
     ISystemInfo System,
     IStateStore Store,
     IClock Clock,

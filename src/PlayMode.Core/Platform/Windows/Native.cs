@@ -12,8 +12,16 @@ internal static class Native
     public const uint SYNCHRONIZE = 0x00100000;
     public const uint WAIT_TIMEOUT = 0x102;
     public const int ERROR_ACCESS_DENIED = 5;
+    public const uint SPI_GETMOUSE = 0x0003;
+    public const uint SPI_SETMOUSE = 0x0004;
+    public const uint SPIF_UPDATEINIFILE = 0x01;
+    public const uint SPIF_SENDCHANGE = 0x02;
 
     public delegate bool EnumWindowsProc(nint hWnd, nint lParam);
+
+    [DllImport("user32.dll", EntryPoint = "SystemParametersInfoW", SetLastError = true)]
+    [return: MarshalAs(UnmanagedType.Bool)]
+    public static extern bool SystemParametersInfo(uint action, uint param, [In, Out] int[] values, uint winIni);
 
     [DllImport("user32.dll")]
     [return: MarshalAs(UnmanagedType.Bool)]

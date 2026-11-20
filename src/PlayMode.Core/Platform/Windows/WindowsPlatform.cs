@@ -14,6 +14,7 @@ public static class WindowsPlatform
             new WindowsServiceControl(new ServiceHelperClient(log)),
             new TailscaleCli(log),
             new WslCli(),
+            new WindowsMouseSettings(),
             new WindowsSystemInfo(),
             new JsonStateStore(AppPaths.StateFile, log),
             new SystemClock(),
