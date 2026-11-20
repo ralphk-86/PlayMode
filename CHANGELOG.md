@@ -3,6 +3,14 @@
 All notable changes to PlayMode are listed here. The format follows [Keep a Changelog](https://keepachangelog.com/),
 and versions follow [Semantic Versioning](https://semver.org/).
 
+## [0.2.0] - 2026-11-20
+
+### Added
+
+- Profile option **Turn off mouse acceleration while playing**: switches Windows' "Enhance pointer precision" off in
+  play mode and puts back exactly what was set when you switch back, also after a reboot or crash. Off by default; if
+  acceleration is already off, nothing is changed. Games that read raw mouse input ignore this setting either way.
+
 ## [0.1.0] - 2026-10-22
 
 The first public release.
@@ -23,4 +31,5 @@ The first public release.
   the download against the release's checksums and restarts the tray.
 - Per-user installer (no admin needed) and a portable zip.
 
+[0.2.0]: https://github.com/ralphk-86/PlayMode/releases/tag/v0.2.0
 [0.1.0]: https://github.com/ralphk-86/PlayMode/releases/tag/v0.1.0

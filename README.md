@@ -9,7 +9,7 @@ indexers — when you sit down to play, and brings back *exactly what was runnin
 [![Release](https://img.shields.io/github/v/release/ralphk-86/PlayMode)](https://github.com/ralphk-86/PlayMode/releases/latest)
 [![License: MIT](https://img.shields.io/badge/license-MIT-blue)](LICENSE)
 
-> **Status: 0.1, early but working.** The tray app, settings window, engine and service control are in daily use on
+> **Status: 0.2, early but working.** The tray app, settings window, engine and service control are in daily use on
 > our own machines. A global hotkey and switching automatically when a game starts are next. See the
 > [roadmap](#roadmap).
 
@@ -102,6 +102,8 @@ never-touch list. Nothing is saved until you've looked it over.
   music alone. Pick one from the tray menu.
 - **Services** to stop while you play, picked from the ones other vendors installed. Services games and anti-cheat
   need are never offered.
+- **Mouse acceleration** can be turned off while you play and comes back afterwards (off by default). Games that use
+  raw mouse input, which is most shooters, ignore Windows' acceleration anyway; this helps the ones that don't.
 
 Settings are stored in `%APPDATA%\PlayMode\config.json`, which you can also edit by hand (see
 [samples/config.example.json](samples/config.example.json)). Saving from the window keeps the previous file as
@@ -155,6 +157,7 @@ should be able to check. Here is everything it touches:
 | What to restore, and a log | `%LOCALAPPDATA%\PlayMode\state.json`, `playmode.log` | While running |
 | Start with Windows | `PlayMode` value under `HKCU\Software\Microsoft\Windows\CurrentVersion\Run` | If you choose it |
 | `playmodectl` on PATH | Your user `Path` variable | If you choose it at install |
+| Mouse acceleration ("Enhance pointer precision") | Windows pointer settings (`MouseSpeed`, `MouseThreshold1`, `MouseThreshold2` under `HKCU\Control Panel\Mouse`) | Only if a profile turns it on: off in play mode, put back afterwards |
 | Service helper and its allowlist | `C:\Program Files\PlayMode\Helper` | Only after service-control setup |
 | Two on-demand scheduled tasks | `\PlayMode\ServicesStop` and `\PlayMode\ServicesStart` | Only after service-control setup |
 | Helper requests, results and log | `C:\ProgramData\PlayMode` | Only after service-control setup |
@@ -229,8 +232,8 @@ dotnet test
 To build what a release ships:
 
 ```powershell
-./build/publish.ps1 -Version 0.1.0                  # app, playmodectl and helper in artifacts\publish
-iscc /DAppVersion=0.1.0 installer\PlayMode.iss      # installer in artifacts\ (needs Inno Setup 6)
+./build/publish.ps1 -Version 0.2.0                  # app, playmodectl and helper in artifacts\publish
+iscc /DAppVersion=0.2.0 installer\PlayMode.iss      # installer in artifacts\ (needs Inno Setup 6)
 ```
 
 Releases are built by [GitHub Actions](.github/workflows/release.yml) when a `v*` tag is pushed.

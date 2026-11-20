@@ -6,7 +6,7 @@
     <LangVersion>latest</LangVersion>
     <TreatWarningsAsErrors>true</TreatWarningsAsErrors>
     <AnalysisLevel>latest</AnalysisLevel>
-    <Version>0.1.0</Version>
+    <Version>0.2.0</Version>
     <Authors>ralphk-86</Authors>
     <Product>PlayMode</Product>
     <Copyright>Copyright (c) 2026 ralphk-86</Copyright>
