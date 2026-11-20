@@ -34,6 +34,7 @@ sealed class SettingsForm : Form
     readonly ListView _apps = new() { Dock = DockStyle.Fill, View = View.Details, FullRowSelect = true, HideSelection = false, MultiSelect = false };
     readonly RuleEditor _editor = new() { Dock = DockStyle.Fill };
     readonly CheckBox _confirmRisky = new() { Text = "Ask before closing apps marked \"ask first\"", AutoSize = true, Margin = new Padding(0, 8, 0, 0) };
+    readonly CheckBox _mouseAccelOff = new() { Text = "Turn off mouse acceleration while playing", AutoSize = true, Margin = new Padding(0, 8, 0, 0) };
     readonly DataGridView _services = new()
     {
         Dock = DockStyle.Fill,
@@ -157,6 +158,11 @@ sealed class SettingsForm : Form
             if (!_filling)
                 SetProfile(Profile with { ConfirmRisky = _confirmRisky.Checked });
         };
+        _mouseAccelOff.CheckedChanged += (_, _) =>
+        {
+            if (!_filling)
+                SetProfile(Profile with { MouseAccelerationOff = _mouseAccelOff.Checked });
+        };
 
         var buttons = Ui.Row(
             Ui.Button("Add apps…", async (_, _) => await AddApps()),
@@ -170,9 +176,10 @@ sealed class SettingsForm : Form
         order.Dock = DockStyle.Top;
         order.Padding = new Padding(0, 0, 0, 6);
         _confirmRisky.Dock = DockStyle.Bottom;
+        _mouseAccelOff.Dock = DockStyle.Bottom;
 
         var left = new Panel { Dock = DockStyle.Fill, Padding = new Padding(8) };
-        left.Controls.AddRange([_apps, order, buttons, _confirmRisky]);
+        left.Controls.AddRange([_apps, order, buttons, _confirmRisky, _mouseAccelOff]);
         var split = new SplitContainer { Dock = DockStyle.Fill, FixedPanel = FixedPanel.Panel2, SplitterWidth = 6 };
         split.Panel1.Controls.Add(left);
         split.Panel2.Controls.Add(_editor);
@@ -369,6 +376,7 @@ sealed class SettingsForm : Form
         _filling = true;
         _isDefault.Checked = string.Equals(_defaultProfile, Profile.Name, StringComparison.OrdinalIgnoreCase);
         _confirmRisky.Checked = Profile.ConfirmRisky;
+        _mouseAccelOff.Checked = Profile.MouseAccelerationOff;
         var active = Profile.Name == _activePlayProfile;
         _renameProfile.Enabled = _deleteProfile.Enabled = !active;
         _deleteProfile.Enabled &= _profiles.Count > 1;

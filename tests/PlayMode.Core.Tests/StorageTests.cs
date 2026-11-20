@@ -38,6 +38,31 @@ public sealed class StorageTests : IDisposable
     }
 
     [Fact]
+    public void Saved_mouse_settings_round_trip_and_are_left_out_when_there_are_none()
+    {
+        var file = Path.Combine(_dir, "state.json");
+        var store = new JsonStateStore(file, _log);
+        store.Save(new PlayState { Mode = Mode.Play, MouseBefore = new MouseParams(6, 10, 1) });
+        Assert.Equal(new MouseParams(6, 10, 1), store.Load().MouseBefore);
+
+        store.Save(new PlayState());
+        Assert.Null(store.Load().MouseBefore);
+        Assert.DoesNotContain("mouseBefore", File.ReadAllText(file), StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public void Mouse_acceleration_option_is_off_unless_the_config_turns_it_on()
+    {
+        var path = Path.Combine(_dir, "config.json");
+        Directory.CreateDirectory(_dir);
+        File.WriteAllText(path, """{ "profiles": [ { "name": "A" }, { "name": "B", "mouseAccelerationOff": true } ] }""");
+
+        var config = ConfigStore.Load(path);
+        Assert.False(config.GetProfile("A").MouseAccelerationOff);
+        Assert.True(config.GetProfile("B").MouseAccelerationOff);
+    }
+
+    [Fact]
     public void Missing_state_means_dev_mode()
     {
         Assert.Equal(Mode.Dev, new JsonStateStore(Path.Combine(_dir, "none.json"), _log).Load().Mode);

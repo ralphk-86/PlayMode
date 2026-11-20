@@ -10,6 +10,8 @@
     {
       "name": "Competitive",
       "confirmRisky": true,
+      // Turn off Windows mouse acceleration while playing (put back afterwards). Raw-input games ignore it either way.
+      "mouseAccelerationOff": false,
       "apps": [
         // Dev stack: "risky" means PlayMode asks first, because live work is lost.
         { "id": "WSL", "kind": "Wsl", "risky": true },

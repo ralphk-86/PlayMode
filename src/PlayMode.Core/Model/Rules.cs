@@ -51,6 +51,9 @@ public sealed record Profile
     public IReadOnlyList<AppRule> Apps { get; init; } = [];
     public IReadOnlyList<ServiceRule> Services { get; init; } = [];
     public bool ConfirmRisky { get; init; } = true;
+
+    /// <summary>Turn Windows mouse acceleration off while playing; the previous values come back afterwards.</summary>
+    public bool MouseAccelerationOff { get; init; }
 }
 
 public sealed record PlayModeConfig
