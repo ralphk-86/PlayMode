@@ -346,6 +346,138 @@ public class EngineTests
         Assert.Contains("started 1 services", report.Title);
     }
 
+    // ---------------------------------------------------------------- mouse acceleration
+
+    PlayModeEngine MouseEngine() => Engine(new Profile { Name = "Gaming", MouseAccelerationOff = true });
+
+    [Fact]
+    public async Task Turns_mouse_acceleration_off_and_puts_back_exactly_what_was_set()
+    {
+        _os.Mouse = new(4, 12, 2);
+        var engine = MouseEngine();
+
+        var on = await engine.EnableAsync(null, null);
+        Assert.Equal(MouseParams.Off, _os.Mouse);
+        Assert.Equal(new MouseParams(4, 12, 2), engine.State.MouseBefore);
+        Assert.Contains("mouse acceleration off", on!.Title);
+
+        var off = await engine.DisableAsync();
+        Assert.Equal(new MouseParams(4, 12, 2), _os.Mouse);
+        Assert.Null(engine.State.MouseBefore);
+        Assert.Contains("mouse acceleration on", off.Title);
+    }
+
+    [Fact]
+    public async Task Leaves_the_mouse_alone_unless_the_profile_asks()
+    {
+        var engine = Engine();
+        var on = await engine.EnableAsync(null, null);
+        await engine.DisableAsync();
+        Assert.Empty(_os.MouseSets);
+        Assert.Null(engine.State.MouseBefore);
+        Assert.DoesNotContain("mouse", on!.Title);
+    }
+
+    [Fact]
+    public async Task Mouse_acceleration_already_off_is_neither_saved_nor_changed()
+    {
+        _os.Mouse = new(6, 10, 0);   // speed alone decides
+        var engine = MouseEngine();
+
+        var on = await engine.EnableAsync(null, null);
+        Assert.Null(engine.State.MouseBefore);
+        Assert.DoesNotContain("mouse", on!.Title);
+        Assert.Empty(on.Notes);
+
+        await engine.DisableAsync();
+        Assert.Empty(_os.MouseSets);
+        Assert.Equal(new MouseParams(6, 10, 0), _os.Mouse);
+    }
+
+    [Fact]
+    public async Task Switching_on_twice_keeps_the_original_mouse_settings()
+    {
+        var engine = MouseEngine();
+        await engine.EnableAsync(null, null);
+        var second = await engine.EnableAsync(null, null);
+
+        Assert.Equal(new MouseParams(6, 10, 1), engine.State.MouseBefore);
+        Assert.Single(_os.MouseSets);
+        Assert.Contains("mouse acceleration off", second!.Title);
+
+        await engine.DisableAsync();
+        Assert.Equal(new MouseParams(6, 10, 1), _os.Mouse);
+    }
+
+    [Fact]
+    public async Task Manual_change_during_play_is_put_back_to_the_original()
+    {
+        var engine = MouseEngine();
+        await engine.EnableAsync(null, null);
+        _os.Mouse = new(0, 0, 2);   // changed by hand in Control Panel while playing
+
+        await engine.DisableAsync();
+        Assert.Equal(new MouseParams(6, 10, 1), _os.Mouse);
+    }
+
+    [Fact]
+    public async Task Reports_mouse_failures_without_stopping_the_switch()
+    {
+        _os.MouseSetFails = true;
+        var engine = MouseEngine();
+
+        var on = await engine.EnableAsync(null, null);
+        Assert.Contains("Mouse acceleration could not be turned off", on!.Notes);
+        Assert.DoesNotContain("mouse acceleration off", on.Title);
+        Assert.Equal(Mode.Play, engine.State.Mode);
+
+        var off = await engine.DisableAsync();
+        Assert.Contains("Mouse acceleration could not be restored", off.Notes);
+        Assert.DoesNotContain("mouse acceleration on", off.Title);
+        Assert.Equal(Mode.Dev, engine.State.Mode);
+        Assert.Null(engine.State.MouseBefore);
+
+        _os.MouseSetFails = false;
+        _os.MouseSets.Clear();
+        _os.Mouse = null;   // Windows will not say
+        var blind = await MouseEngine().EnableAsync(null, null);
+        Assert.Contains("Mouse acceleration could not be read", blind!.Notes);
+        Assert.Empty(_os.MouseSets);
+        Assert.Null(_os.Load().MouseBefore);
+    }
+
+    [Fact]
+    public async Task Restores_the_mouse_after_a_restart_even_if_the_profile_changed()
+    {
+        await MouseEngine().EnableAsync(null, null);
+        Assert.Equal(MouseParams.Off, _os.Mouse);
+        _os.SessionLogonTime = _os.Now.AddHours(10);
+
+        var later = Engine(new Profile { Name = "Gaming" });   // new engine, same state file, option now off
+        Assert.True(later.NeedsRecovery());
+        await later.DisableAsync();
+        Assert.Equal(new MouseParams(6, 10, 1), _os.Mouse);
+    }
+
+    [Fact]
+    public async Task Mouse_settings_are_saved_before_they_are_changed()
+    {
+        PlayState? seenAtSet = null;
+        var spy = _os.Platform with { Mouse = new SpyMouse(_os, () => seenAtSet ??= _os.Load()) };
+
+        await new PlayModeEngine(spy, new PlayModeConfig { Profiles = [new Profile { Name = "Gaming", MouseAccelerationOff = true }] })
+            .EnableAsync(null, null);
+
+        Assert.NotNull(seenAtSet);
+        Assert.Equal(new MouseParams(6, 10, 1), seenAtSet!.MouseBefore);
+    }
+
+    sealed class SpyMouse(IMouseSettings inner, Action onSet) : IMouseSettings
+    {
+        public MouseParams? Get() => inner.Get();
+        public bool Set(MouseParams value) { onSet(); return inner.Set(value); }
+    }
+
     // ---------------------------------------------------------------- recovery
 
     [Fact]

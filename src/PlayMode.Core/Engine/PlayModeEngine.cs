@@ -90,6 +90,14 @@ public sealed class PlayModeEngine(PlatformServices os, PlayModeConfig config, E
         if (state.Mode != Mode.Play)
             state = new PlayState { Mode = Mode.Play, Profile = profile.Name };
         state.Since = os.Clock.Now;
+        var mouseUnreadable = false;
+        if (profile.MouseAccelerationOff && state.MouseBefore is null)
+        {
+            var mouse = os.Mouse.Get();
+            mouseUnreadable = mouse is null;
+            if (mouse is { Speed: not 0 })
+                state.MouseBefore = mouse;   // never overwritten by a second switch-on
+        }
         foreach (var item in plan.Items)
         {
             if (item.Rule.Kind == AppKind.Tailscale)
@@ -102,6 +110,16 @@ public sealed class PlayModeEngine(PlatformServices os, PlayModeConfig config, E
         os.Log.Info($"{profile.Name} ON. Affecting: {(affecting.Count > 0 ? string.Join(", ", affecting) : "nothing running")}");
 
         var notes = new List<string>();
+        var mouseOff = false;
+        if (mouseUnreadable)
+            notes.Add("Mouse acceleration could not be read");
+        if (profile.MouseAccelerationOff && state.MouseBefore is not null)
+        {
+            mouseOff = os.Mouse.Get() is { Speed: 0 } || os.Mouse.Set(MouseParams.Off);
+            if (!mouseOff)
+                notes.Add("Mouse acceleration could not be turned off");
+        }
+
         var apps = plan.Items.Where(i => i.Rule.Kind == AppKind.Process).ToList();
 
         var suspended = 0;
@@ -177,6 +195,8 @@ public sealed class PlayModeEngine(PlatformServices os, PlayModeConfig config, E
             parts.Add($"stopped {services.Ok.Count} services");
         if (state.TailscaleWasUp)
             parts.Add("Tailscale off");
+        if (mouseOff)
+            parts.Add("mouse acceleration off");
         var report = new Report($"{profile.Name} ON: {string.Join(", ", parts)}", notes);
 
         state = os.Store.Load();
@@ -202,6 +222,11 @@ public sealed class PlayModeEngine(PlatformServices os, PlayModeConfig config, E
 
         if (state.TailscaleWasUp && os.Tailscale.IsInstalled && !os.Tailscale.IsUp() && !os.Tailscale.Up())
             notes.Add("Tailscale did not reconnect");
+
+        // Driven by the saved state alone, so it also works after a reboot or a profile change.
+        var mouseOn = state.MouseBefore is { } before && os.Mouse.Set(before);
+        if (state.MouseBefore is not null && !mouseOn)
+            notes.Add("Mouse acceleration could not be restored");
 
         var snapshot = os.Processes.Snapshot();
         var ctx = Context;
@@ -278,6 +303,8 @@ public sealed class PlayModeEngine(PlatformServices os, PlayModeConfig config, E
             parts.Add($"started {services.Ok.Count} services");
         if (state.TailscaleWasUp)
             parts.Add("Tailscale on");
+        if (mouseOn)
+            parts.Add("mouse acceleration on");
         var report = new Report($"Dev mode: {string.Join(", ", parts)}", notes);
         os.Store.Save(new PlayState { Mode = Mode.Dev, LastReport = report.ToString() });
         os.Log.Info(report.ToString());

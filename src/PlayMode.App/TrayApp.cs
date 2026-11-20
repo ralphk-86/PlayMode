@@ -190,6 +190,7 @@ sealed class TrayApp : ApplicationContext
         var text = state.Mode == Mode.Play
             ? "Switching back would restore:\n" + string.Join("\n", state.Closed.Select(c => "  " + c.Id))
                 + (state.TailscaleWasUp ? "\n  Tailscale" : "")
+                + (state.MouseBefore is not null ? "\n  Mouse acceleration" : "")
             : $"Switching to {config.GetProfile(PickedProfile(config)).Name} would affect:\n\n"
                 + await Task.Run(() => engine.BuildPlan(PickedProfile(config)).Describe());
         Show(text, "PlayMode: preview");
